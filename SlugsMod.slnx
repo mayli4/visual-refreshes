@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/.common/" />
+  <Folder Name="/.github/">
+    <File Path=".github\readme.md" />
+  </Folder>
+  <Project Path="src\SlugsMod\SlugsMod.csproj" />
+</Solution>
