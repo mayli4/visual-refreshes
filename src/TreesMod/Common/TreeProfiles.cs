@@ -26,7 +26,7 @@ public static class TreeProfiles {
     public static int VanillaTreetopCount;
     
     [OnLoad, UsedImplicitly]
-    static void ResizeTextureArrays() {
+    private static void ResizeTextureArrays() {
         if (VanillaTreetopCount == 0) {
             VanillaTreetopCount = TextureAssets.TreeTop.Length;
         }
@@ -37,7 +37,7 @@ public static class TreeProfiles {
     }
     
     [OnUnload, UsedImplicitly]
-    static void RevertTextureArrays() {
+    private static void RevertTextureArrays() {
         if (VanillaTreetopCount > 0) {
             for (int i = VanillaTreetopCount; i < TextureAssets.TreeTop.Length; i++) {
                 TextureAssets.TreeTop[i] = null;
@@ -50,7 +50,7 @@ public static class TreeProfiles {
     }
     
     [OnLoad, UsedImplicitly]
-    static void Load() {
+    private static void Load() {
         #region Forest Trees
 
         // for some reason, default forest treetop is idx 0, and the rest are 6 through 10 :\ annoying, but workable atleast
