@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="daybreak-mod/src/Daybreak/Daybreak.csproj" />
   <Project Path="Refreshes/Refreshes.csproj" />
   <Project Path="SlugsMod/SlugsMod.csproj" />
 </Solution>

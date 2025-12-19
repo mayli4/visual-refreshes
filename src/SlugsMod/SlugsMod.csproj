@@ -13,13 +13,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="lib\" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Reference Include="Daybreak">
-        <HintPath>lib\Daybreak.dll</HintPath>
-      </Reference>
+        <ProjectReference Include="..\daybreak-mod\src\Daybreak\Daybreak.csproj"/>
     </ItemGroup>
 
 </Project>
