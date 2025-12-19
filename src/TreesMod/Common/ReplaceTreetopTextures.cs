@@ -1,6 +1,7 @@
 ﻿using Daybreak.Common.Features.Hooks;
 using JetBrains.Annotations;
 using MonoMod.Cil;
+using ReLogic.Content;
 using System;
 using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
@@ -9,13 +10,9 @@ using Terraria.Utilities;
 
 namespace TreesMod.Common;
 
-public struct TreeDescription {
-    
-}
-
 [UsedImplicitly]
 internal sealed class ReplaceTreetopTextures {
-    [OnLoad]
+    [OnLoad, UsedImplicitly]
     static void InjectHooks() {
         On_TileDrawing.DrawTrees += On_TileDrawingOnDrawTrees;
     }
@@ -87,7 +84,9 @@ internal sealed class ReplaceTreetopTextures {
                             if(!getTreeFoliageDataMethod(x, y, num13, ref treeFrame, ref treeStyle3, out floorY3,out topTextureFrameWidth3, out topTextureFrameHeight3))
                                 continue;
 
-                            self.EmitTreeLeaves(x, y, grassPosX, floorY3);
+                            //self.EmitTreeLeaves(x, y, grassPosX, floorY3);
+                            
+                            //treestyle == 14 = giant mushroom tree
                             if(treeStyle3 == 14) {
                                 float num14 = (float)self._rand.Next(28, 42) * 0.005f;
                                 num14 += (float)(270 - Main.mouseTextColor) / 1000f;
@@ -116,6 +115,8 @@ internal sealed class ReplaceTreetopTextures {
                             if(tile.fullbrightBlock())
                                 color6 = Color.White;
 
+                            TreetopProfiles.TryGetProfile(treeStyle3, out var profile);
+
                             Vector2 origin;
                             Rectangle rect;
                             //hardcoded, todo
@@ -129,6 +130,7 @@ internal sealed class ReplaceTreetopTextures {
                                 num15 = self.GetWindCycle(x, y, self._treeWindCounter) * 0.5f;
 
                                 treeTopTexture = Assets.Images.Content.Trees.Tree_Tops_0.Asset.Value;
+                                //treeTopTexture = profile.TopTexture.Value;
                             } else {
                                 rect = new Rectangle(treeFrame * (topTextureFrameWidth3 + 2), 0, topTextureFrameWidth3, topTextureFrameHeight3);
 
