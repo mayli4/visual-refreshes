@@ -1,5 +1,5 @@
-﻿displayName = TreesMod
-author = mathica, tobias
+﻿displayName = Unnamed Visual Refresh Mod
+author = Gold Meridian
 version = 0.0.1
 hideCode = true
 hideResources = true
