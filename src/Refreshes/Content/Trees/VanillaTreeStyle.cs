@@ -1,6 +1,6 @@
 ﻿namespace Refreshes.Content;
 
-public enum VanillaTreeStyleID
+public enum VanillaTreeStyle
 {
     Unknown,
 

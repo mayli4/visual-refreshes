@@ -1,6 +1,5 @@
 using System;
 using Daybreak.Common.Features.Hooks;
-using ReLogic.Content;
 using Terraria.DataStructures;
 using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
@@ -10,121 +9,10 @@ namespace Refreshes.Content;
 
 // TODO: Re-add paint support later?
 
-public abstract class GemTreeRenderer
-{
-    public abstract RendererContext GetContext(
-        int tileX,
-        int tileY
-    );
-
-    public abstract int GetTreeTileType(
-        Tile tile
-    );
-
-    public abstract Asset<Texture2D> GetTileDrawTexture(
-        RendererContext ctx,
-        GemTreeVanityProfile profile
-    );
-
-    public abstract void GetGlowData(
-        RendererContext ctx,
-        GemTreeVanityProfile profile,
-        Tile tile,
-        int tileWidth,
-        int tileHeight,
-        out Texture2D glowTexture,
-        out Rectangle glowSourceRect
-    );
-}
-
-public sealed class TreeRenderer : GemTreeRenderer
-{
-    public override RendererContext GetContext(int tileX, int tileY)
-    {
-        WorldGen.GetTreeBottom(
-            tileX,
-            tileY,
-            out var treeBottomX,
-            out var treeBottomY
-        );
-
-        var tileHoldingTree = Framing.GetTileSafely(treeBottomX, treeBottomY);
-        var currentBiome = GemTreeRendering.GetBiomeFromTile(tileHoldingTree);
-        return new RendererContext(this, currentBiome);
-    }
-
-    public override int GetTreeTileType(Tile tile)
-    {
-        return tile.TileType;
-    }
-
-    public override Asset<Texture2D> GetTileDrawTexture(RendererContext ctx, GemTreeVanityProfile profile)
-    {
-        return profile.GetDescription(ctx.CurrentBiome).Trunk;
-    }
-
-    public override void GetGlowData(
-        RendererContext ctx,
-        GemTreeVanityProfile profile,
-        Tile tile,
-        int tileWidth,
-        int tileHeight,
-        out Texture2D glowTexture,
-        out Rectangle glowSourceRect
-    )
-    {
-        glowTexture = (profile.GetDescription(ctx.CurrentBiome).TrunkGems ?? profile.Purity.TrunkGems!).Value;
-        glowSourceRect = new Rectangle(tile.frameX, tile.TileFrameY, tileWidth, tileHeight);
-    }
-}
-
-public sealed class SaplingRenderer : GemTreeRenderer
-{
-    public override RendererContext GetContext(int tileX, int tileY)
-    {
-        var tile = Framing.GetTileSafely(tileX, tileY++);
-        while (tile.TileType == TileID.GemSaplings)
-        {
-            tile = Framing.GetTileSafely(tileX, tileY++);
-        }
-
-        var currentBiome = GemTreeRendering.GetBiomeFromTile(tile);
-        return new RendererContext(this, currentBiome);
-    }
-
-    public override int GetTreeTileType(Tile tile)
-    {
-        return GetCorrespondingTileType(tile.TileFrameX);
-    }
-
-    public override Asset<Texture2D> GetTileDrawTexture(RendererContext ctx, GemTreeVanityProfile profile)
-    {
-        return profile.GetSaplingDescription(ctx.CurrentBiome).Sapling;
-    }
-
-    public override void GetGlowData(RendererContext ctx, GemTreeVanityProfile profile, Tile tile, int tileWidth, int tileHeight, out Texture2D glowTexture, out Rectangle glowSourceRect)
-    {
-        glowTexture = (profile.GetSaplingDescription(ctx.CurrentBiome).SaplingGems ?? profile.PuritySaplings.SaplingGems!).Value;
-        glowSourceRect = new Rectangle(tile.frameX, tile.TileFrameY, tileWidth, tileHeight);
-    }
-
-    private static int GetCorrespondingTileType(int frameX)
-    {
-        return (frameX / 54) switch
-        {
-            0 => 583,
-            1 => 584,
-            2 => 585,
-            3 => 586,
-            4 => 587,
-            5 => 588,
-            6 => 589,
-            _ => 583,
-        };
-    }
-}
-
-public readonly record struct RendererContext(GemTreeRenderer Renderer, int CurrentBiome);
+public readonly record struct RendererContext(
+    GemTreeRenderer Renderer,
+    int CurrentBiome
+);
 
 /// <summary>
 ///     Handles special rendering of gem tree variants.
