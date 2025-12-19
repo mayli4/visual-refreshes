@@ -5,7 +5,6 @@
         <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
 
         <TmlBuildUseDefaultModImpl>true</TmlBuildUseDefaultModImpl>
-        <LangVersion>preview</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>

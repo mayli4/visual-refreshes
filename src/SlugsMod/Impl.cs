@@ -5,8 +5,10 @@ global using Terraria.ModLoader;
 
 namespace SlugsMod;
 
-partial class ModImpl : Mod {
-    public ModImpl() {
+partial class ModImpl
+{
+    public ModImpl()
+    {
         MusicAutoloadingEnabled = false;
         CloudAutoloadingEnabled = false;
     }
