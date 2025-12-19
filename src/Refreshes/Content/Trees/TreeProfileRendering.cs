@@ -1,8 +1,10 @@
 ﻿using System;
 using Daybreak.Common.Features.Hooks;
 using JetBrains.Annotations;
+using Refreshes.Common;
 using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
+using Terraria.ID;
 using Terraria.Utilities;
 
 namespace Refreshes.Content;
@@ -14,77 +16,60 @@ internal sealed class TreeProfileRendering
     [UsedImplicitly]
     private static void InjectHooks()
     {
-        On_TileDrawing.DrawTrees += On_TileDrawingOnDrawTrees;
+        On_TileDrawing.DrawTrees += DrawTrees_RewriteTreeRenderingForProfiles;
     }
 
-    private static void On_TileDrawingOnDrawTrees(On_TileDrawing.orig_DrawTrees orig, TileDrawing self)
+    private static void DrawTrees_RewriteTreeRenderingForProfiles(On_TileDrawing.orig_DrawTrees orig, TileDrawing self)
     {
-        var unscaledPosition = Main.Camera.UnscaledPosition;
-        var zero = Vector2.Zero;
-        var num = 0;
-        var num2 = self._specialsCount[num];
-        var num3 = 0.08f;
-        var num4 = 0.06f;
+        // The rotation values are multiplied by these for cushioning.
+        const float treetop_sway_factor = 0.08f;
+        const float branch_sway_factor = 0.06f;
 
-        const float customRectChance = 0.2f;
+        const int tile_counter_type = (int)TileDrawing.TileCounterType.Tree;
+        var treeCount = self._specialsCount[tile_counter_type];
 
-        for (var i = 0; i < num2; i++)
+        var screenPosition = Main.Camera.UnscaledPosition;
+
+        for (var i = 0; i < treeCount; i++)
         {
-            var point = self._specialPositions[num][i];
-            var x = point.X;
-            var y = point.Y;
+            var (x, y) = self._specialPositions[tile_counter_type][i];
+
             var tile = Main.tile[x, y];
-            if (tile == null || !tile.active())
+            if (!tile.HasTile)
             {
                 continue;
             }
 
-            var seededRandom = new UnifiedRandom(x * 1000 + y);
-
             var type = tile.type;
             var frameX = tile.frameX;
             var frameY = tile.frameY;
-            var flag = tile.wall > 0;
-            WorldGen.GetTreeFoliageDataMethod getTreeFoliageDataMethod = null;
+            var hasWall = tile.wall > 0;
+
+            GemTreeRendering.RenderCtx = GemTreeRendering.Sets.GemTreeRenderers[type] is { } renderer
+                ? renderer.GetContext(x, y)
+                : null;
+
             try
             {
-                var flag2 = false;
-                switch (type)
+                // Foliage data providers are provided for all common trees, but
+                // not palm trees.
+                var foliageDataProvider = type switch
                 {
-                    case 5:
-                        flag2 = true;
-                        getTreeFoliageDataMethod = WorldGen.GetCommonTreeFoliageData;
-                        break;
+                    TileID.Trees => WorldGen.GetCommonTreeFoliageData,
+                    TileID.TreeTopaz or TileID.TreeAmethyst or TileID.TreeSapphire or TileID.TreeEmerald or TileID.TreeRuby or TileID.TreeDiamond or TileID.TreeAmber => WorldGen.GetGemTreeFoliageData,
+                    TileID.VanityTreeSakura or TileID.VanityTreeYellowWillow => WorldGen.GetVanityTreeFoliageData,
+                    TileID.TreeAsh => WorldGen.GetAshTreeFoliageData,
+                    _ => default(WorldGen.GetTreeFoliageDataMethod),
+                };
 
-                    case 583:
-                    case 584:
-                    case 585:
-                    case 586:
-                    case 587:
-                    case 588:
-                    case 589:
-                        flag2 = true;
-                        getTreeFoliageDataMethod = WorldGen.GetGemTreeFoliageData;
-                        break;
-
-                    case 596:
-                    case 616:
-                        flag2 = true;
-                        getTreeFoliageDataMethod = WorldGen.GetVanityTreeFoliageData;
-                        break;
-
-                    case 634:
-                        flag2 = true;
-                        getTreeFoliageDataMethod = WorldGen.GetAshTreeFoliageData;
-                        break;
-                }
-
-                if (flag2 && frameY >= 198 && frameX >= 22)
+                // Regular cases are of course handled here.  This handles
+                // branch and top rendering.
+                if (foliageDataProvider is not null && frameY >= 198 && frameX >= 22)
                 {
                     var treeFrame = WorldGen.GetTreeFrame(tile);
                     switch (frameX)
                     {
-                        // generic trees??
+                        // left branch
                         case 22:
                         {
                             var treeStyle3 = 0;
@@ -93,7 +78,7 @@ internal sealed class TreeProfileRendering
                             var num13 = 0;
                             var grassPosX = x + num13;
                             var floorY3 = y;
-                            if (!getTreeFoliageDataMethod(x, y, num13, ref treeFrame, ref treeStyle3, out floorY3, out topTextureFrameWidth3, out topTextureFrameHeight3))
+                            if (!foliageDataProvider(x, y, num13, ref treeFrame, ref treeStyle3, out floorY3, out topTextureFrameWidth3, out topTextureFrameHeight3))
                             {
                                 continue;
                             }
@@ -121,9 +106,9 @@ internal sealed class TreeProfileRendering
 
                             var tileColor3 = tile.color();
                             var treeTopTexture = self.GetTreeTopTexture(treeStyle3, 0, tileColor3);
-                            Vector2 vector = vector = new Vector2(x * 16 - (int)unscaledPosition.X + 8, y * 16 - (int)unscaledPosition.Y + 16) + zero;
+                            Vector2 vector = vector = new Vector2(x * 16 - (int)screenPosition.X + 8, y * 16 - (int)screenPosition.Y + 16) + zero;
                             var num15 = 0f;
-                            if (!flag)
+                            if (!hasWall)
                             {
                                 num15 = self.GetWindCycle(x, y, self._treeWindCounter);
                             }
@@ -163,13 +148,21 @@ internal sealed class TreeProfileRendering
                             }*/
 #endregion
 
+                            treeTopTexture = profile.GetTop(tileColor3);
+
+                            var gemProfile = GemTreeVanityProfiles.GetProfile(tile.TileType);
+                            if (gemProfile.HasValue && GemTreeRendering.RenderCtx.HasValue)
+                            {
+                                treeTopTexture = gemProfile.Value.GetDescription(GemTreeRendering.RenderCtx.Value.CurrentBiome).Tops.Value;
+                            }
+
                             // draw treetop
                             Main.spriteBatch.Draw(
-                                profile.GetTop(tileColor3),
+                                treeTopTexture,
                                 vector,
                                 rect,
                                 color6,
-                                num15 * num3,
+                                num15 * treetop_sway_factor,
                                 origin + variation.OriginOffset,
                                 1f,
                                 SpriteEffects.None,
@@ -191,7 +184,7 @@ internal sealed class TreeProfileRendering
                                         topTextureFrameHeight3
                                     ),
                                     white3,
-                                    num15 * num3,
+                                    num15 * treetop_sway_factor,
                                     new Vector2(topTextureFrameWidth3 / 2, topTextureFrameHeight3),
                                     1f,
                                     SpriteEffects.None,
@@ -202,13 +195,14 @@ internal sealed class TreeProfileRendering
                             break;
                         }
 
+                        // right branch
                         case 44:
                         {
                             var treeStyle2 = 0;
                             var num9 = x;
                             var floorY2 = y;
                             var num10 = 1;
-                            if (!getTreeFoliageDataMethod(
+                            if (!foliageDataProvider(
                                     x,
                                     y,
                                     num10,
@@ -243,10 +237,10 @@ internal sealed class TreeProfileRendering
 
                             var tileColor2 = tile.color();
                             var treeBranchTexture2 = self.GetTreeBranchTexture(treeStyle2, 0, tileColor2);
-                            var position2 = new Vector2(x * 16, y * 16) - unscaledPosition.Floor() + zero +
+                            var position2 = new Vector2(x * 16, y * 16) - screenPosition.Floor() + zero +
                                             new Vector2(16f, 12f);
                             var num12 = 0f;
-                            if (!flag)
+                            if (!hasWall)
                             {
                                 num12 = self.GetWindCycle(x, y, self._treeWindCounter);
                             }
@@ -265,7 +259,7 @@ internal sealed class TreeProfileRendering
                             }
 
                             //left branch
-                            Main.spriteBatch.Draw(treeBranchTexture2, position2, new Rectangle(0, treeFrame * 42, 40, 40), color4, num12 * num4, new Vector2(40f, 24f), 1f, SpriteEffects.None, 0f);
+                            Main.spriteBatch.Draw(treeBranchTexture2, position2, new Rectangle(0, treeFrame * 42, 40, 40), color4, num12 * branch_sway_factor, new Vector2(40f, 24f), 1f, SpriteEffects.None, 0f);
 
                             //ashtree left branch
                             if (type == 634)
@@ -277,7 +271,7 @@ internal sealed class TreeProfileRendering
                                     position2,
                                     new Rectangle(0, treeFrame * 42, 40, 40),
                                     white2,
-                                    num12 * num4,
+                                    num12 * branch_sway_factor,
                                     new Vector2(40f, 24f),
                                     1f,
                                     SpriteEffects.None,
@@ -288,13 +282,14 @@ internal sealed class TreeProfileRendering
                             break;
                         }
 
+                        // tree top
                         case 66:
                         {
                             var treeStyle = 0;
                             var num5 = x;
                             var floorY = y;
                             var num6 = -1;
-                            if (!getTreeFoliageDataMethod(
+                            if (!foliageDataProvider(
                                     x,
                                     y,
                                     num6,
@@ -329,10 +324,10 @@ internal sealed class TreeProfileRendering
 
                             var tileColor = tile.color();
                             var treeBranchTexture = self.GetTreeBranchTexture(treeStyle, 0, tileColor);
-                            var position = new Vector2(x * 16, y * 16) - unscaledPosition.Floor() + zero +
+                            var position = new Vector2(x * 16, y * 16) - screenPosition.Floor() + zero +
                                            new Vector2(0f, 18f);
                             var num8 = 0f;
-                            if (!flag)
+                            if (!hasWall)
                             {
                                 num8 = self.GetWindCycle(x, y, self._treeWindCounter);
                             }
@@ -355,7 +350,7 @@ internal sealed class TreeProfileRendering
                                 position,
                                 new Rectangle(42, treeFrame * 42, 40, 40),
                                 color2,
-                                num8 * num4,
+                                num8 * branch_sway_factor,
                                 new Vector2(0f, 30f),
                                 1f,
                                 SpriteEffects.None,
@@ -372,7 +367,7 @@ internal sealed class TreeProfileRendering
                                     position,
                                     new Rectangle(42, treeFrame * 42, 40, 40),
                                     white,
-                                    num8 * num4,
+                                    num8 * branch_sway_factor,
                                     new Vector2(0f, 30f),
                                     1f,
                                     SpriteEffects.None,
@@ -385,97 +380,95 @@ internal sealed class TreeProfileRendering
                     }
                 }
 
-                if (type == 323 && frameX >= 88 && frameX <= 132)
+                // Then palm trees are handled here.  Because they have no
+                // branches, only the tops are rendered here.
+                if (type == TileID.PalmTree && frameX is >= 88 and <= 132)
                 {
-                    var num16 = 0;
-                    switch (frameX)
+                    var palmTopIdx = 15;
+                    var palmTopWidth = 80;
+                    var palmTopHeight = 80;
+                    var palmTopHorizontalOffset = 32;
+                    var palmTopVerticalOffset = 0;
+                    var palmBiome = self.GetPalmTreeBiome(x, y);
+                    var palmTopYFrame = palmBiome * 82;
+                    var palmTopXFrame = frameX switch
                     {
-                        case 110:
-                            num16 = 1;
-                            break;
-
-                        case 132:
-                            num16 = 2;
-                            break;
+                        110 => 1,
+                        132 => 2,
+                        _ => 0,
+                    };
+                    
+                    if (palmBiome is >= 4 and <= 7)
+                    {
+                        palmTopIdx = 21;
+                        palmTopWidth = 114;
+                        palmTopHeight = 98;
+                        palmTopYFrame = (palmBiome - 4) * 98;
+                        palmTopHorizontalOffset = 48;
+                        palmTopVerticalOffset = 2;
                     }
 
-                    var treeTextureIndex = 15;
-                    var num17 = 80;
-                    var num18 = 80;
-                    var num19 = 32;
-                    var num20 = 0;
-                    var palmTreeBiome = self.GetPalmTreeBiome(x, y);
-                    var y2 = palmTreeBiome * 82;
-                    if (palmTreeBiome >= 4 && palmTreeBiome <= 7)
+                    // Handle modded palm trees.
+                    if (Math.Abs(palmBiome) >= ModPalmTree.VanillaStyleCount)
                     {
-                        treeTextureIndex = 21;
-                        num17 = 114;
-                        num18 = 98;
-                        y2 = (palmTreeBiome - 4) * 98;
-                        num19 = 48;
-                        num20 = 2;
-                    }
-
-                    // Handle mod palms.
-                    if (Math.Abs(palmTreeBiome) >= ModPalmTree.VanillaStyleCount)
-                    {
-                        y2 = 0;
-
-                        // Oasis Tree
-                        if (palmTreeBiome < 0)
-                        {
-                            num17 = 114;
-                            num18 = 98;
-                            num19 = 48;
-                            num20 = 2;
-                        }
-
-                        treeTextureIndex = Math.Abs(palmTreeBiome) - ModPalmTree.VanillaStyleCount;
-                        treeTextureIndex *= -2;
+                        palmTopYFrame = 0;
 
                         // Oasis tree
-                        if (palmTreeBiome < 0)
+                        if (palmBiome < 0)
                         {
-                            treeTextureIndex -= 1;
+                            palmTopWidth = 114;
+                            palmTopHeight = 98;
+                            palmTopHorizontalOffset = 48;
+                            palmTopVerticalOffset = 2;
+                        }
+
+                        palmTopIdx = Math.Abs(palmBiome) - ModPalmTree.VanillaStyleCount;
+                        palmTopIdx *= -2;
+
+                        // Oasis tree
+                        if (palmBiome < 0)
+                        {
+                            palmTopIdx -= 1;
                         }
                     }
 
-                    int frameY2 = Main.tile[x, y].frameY;
-                    var tileColor4 = tile.color();
-                    var treeTopTexture2 = self.GetTreeTopTexture(treeTextureIndex, palmTreeBiome, tileColor4);
-                    var position3 = new Vector2(
-                        x * 16 - (int)unscaledPosition.X - num19 + frameY2 + num17 / 2,
-                        y * 16 - (int)unscaledPosition.Y + 16 + num20
-                    ) + zero;
-                    var num21 = 0f;
-                    if (!flag)
-                    {
-                        num21 = self.GetWindCycle(x, y, self._treeWindCounter);
-                    }
+                    var palmTopColor = tile.color();
+                    var palmTopTexture = self.GetTreeTopTexture(palmTopIdx, palmBiome, palmTopColor);
+                    var palmTopPos = new Vector2(
+                        x * 16 - (int)screenPosition.X - palmTopHorizontalOffset + frameY + palmTopWidth / 2f,
+                        y * 16 - (int)screenPosition.Y + 16 + palmTopVerticalOffset
+                    );
 
-                    position3.X += num21 * 2f;
-                    position3.Y += Math.Abs(num21) * 2f;
-                    var color7 = Lighting.GetColor(x, y);
+                    var windIntensity = hasWall
+                        ? 0f
+                        : self.GetWindCycle(x, y, self._treeWindCounter);
+
+                    palmTopPos.X += windIntensity * 2f;
+                    palmTopPos.Y += Math.Abs(windIntensity) * 2f;
+
+                    var palmTopLight = Lighting.GetColor(x, y);
                     if (tile.fullbrightBlock())
                     {
-                        color7 = Color.White;
+                        palmTopLight = Color.White;
                     }
 
-                    //palms
                     Main.spriteBatch.Draw(
-                        treeTopTexture2,
-                        position3,
-                        new Rectangle(num16 * (num17 + 2), y2, num17, num18),
-                        color7,
-                        num21 * num3,
-                        new Vector2(num17 / 2, num18),
+                        palmTopTexture,
+                        palmTopPos,
+                        new Rectangle(palmTopXFrame * (palmTopWidth + 2), palmTopYFrame, palmTopWidth, palmTopHeight),
+                        palmTopLight,
+                        windIntensity * treetop_sway_factor,
+                        new Vector2(palmTopWidth / 2f, palmTopHeight),
                         1f,
                         SpriteEffects.None,
                         0f
                     );
                 }
             }
-            catch { }
+            catch
+            {
+                // ignore
+            }
         }
     }
 }

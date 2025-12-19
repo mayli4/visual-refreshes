@@ -86,7 +86,7 @@ public static class GemTreeRendering
     /// </summary>
     public static bool BiomeVariantDropsEnabled => BiomeVariantsEnabled /* && synced && someCondition */;
 
-    private static RendererContext? renderCtx;
+    internal static RendererContext? RenderCtx { get; set; }
 
     [OnLoad]
     private static void ApplyHooks()
@@ -96,9 +96,6 @@ public static class GemTreeRendering
         On_TileDrawing.GetTileDrawTexture_Tile_int_int += GetTileDrawTexture_Tile_int_int_OverrideWithGemProfileVariants;
         On_TileDrawing.GetTileDrawTexture_Tile_int_int_int += GetTileDrawTexture_Tile_int_int_int_OverrideWithGemProfileVariants;
         On_TileDrawing.DrawAnimatedTile_AdjustForVisionChangers += DrawAnimatedTile_AdjustForVisionChangers_ClearRenderContext;
-
-        On_TileDrawing.DrawTrees += DrawTrees;
-
         On_WorldGen.KillTile_GetItemDrops += KillTile_GetItemDrops_ChangeStoneTypeForGemTrees;
     }
 
@@ -122,12 +119,12 @@ public static class GemTreeRendering
 
         try
         {
-            renderCtx = renderer.GetContext(tileX, tileY);
+            RenderCtx = renderer.GetContext(tileX, tileY);
             orig(self, drawData, solidLayer, waterStyleOverride, screenPosition, screenOffset, tileX, tileY);
         }
         finally
         {
-            renderCtx = null;
+            RenderCtx = null;
         }
     }
 
@@ -145,11 +142,11 @@ public static class GemTreeRendering
         }
 
         // Special case for tiles drawn in DrawGrass.
-        if (!renderCtx.HasValue)
+        if (!RenderCtx.HasValue)
         {
             if (Sets.GemTreeRenderers[tile.TileType] is { } renderer)
             {
-                renderCtx = renderer.GetContext(tileX, tileY);
+                RenderCtx = renderer.GetContext(tileX, tileY);
             }
             else
             {
@@ -157,13 +154,13 @@ public static class GemTreeRendering
             }
         }
 
-        var profile = GemTreeVanityProfiles.GetProfile(renderCtx.Value.Renderer.GetTreeTileType(tile));
+        var profile = GemTreeVanityProfiles.GetProfile(RenderCtx.Value.Renderer.GetTreeTileType(tile));
         if (!profile.HasValue)
         {
             return orig(self, tile, tileX, tileY);
         }
 
-        return renderCtx.Value.Renderer.GetTileDrawTexture(renderCtx.Value, profile.Value).Value;
+        return RenderCtx.Value.Renderer.GetTileDrawTexture(RenderCtx.Value, profile.Value).Value;
     }
 
     private static Texture2D GetTileDrawTexture_Tile_int_int_int_OverrideWithGemProfileVariants(
@@ -175,18 +172,18 @@ public static class GemTreeRendering
         int paintOverride
     )
     {
-        if (!BiomeVariantsEnabled || !renderCtx.HasValue)
+        if (!BiomeVariantsEnabled || !RenderCtx.HasValue)
         {
             return orig(self, tile, tileX, tileY, paintOverride);
         }
 
-        var profile = GemTreeVanityProfiles.GetProfile(renderCtx.Value.Renderer.GetTreeTileType(tile));
+        var profile = GemTreeVanityProfiles.GetProfile(RenderCtx.Value.Renderer.GetTreeTileType(tile));
         if (!profile.HasValue)
         {
             return orig(self, tile, tileX, tileY, paintOverride);
         }
 
-        return renderCtx.Value.Renderer.GetTileDrawTexture(renderCtx.Value, profile.Value).Value;
+        return RenderCtx.Value.Renderer.GetTileDrawTexture(RenderCtx.Value, profile.Value).Value;
     }
 
     private static void DrawAnimatedTile_AdjustForVisionChangers_ClearRenderContext(
@@ -205,7 +202,7 @@ public static class GemTreeRendering
         orig(self, i, j, tileCache, typeCache, tileFrameX, tileFrameY, ref tileLight, canDoDust);
 
         // Clear the context always to support saplings.
-        renderCtx = null;
+        RenderCtx = null;
     }
 
     private static void GetTileDrawData_OverrideWithGemProfileVariants(
@@ -249,19 +246,23 @@ public static class GemTreeRendering
             out glowColor
         );
 
-        if (!BiomeVariantsEnabled || !renderCtx.HasValue)
+        if (!BiomeVariantsEnabled || !RenderCtx.HasValue)
         {
             return;
         }
 
-        var profile = GemTreeVanityProfiles.GetProfile(renderCtx.Value.Renderer.GetTreeTileType(tileCache));
+        var profile = GemTreeVanityProfiles.GetProfile(RenderCtx.Value.Renderer.GetTreeTileType(tileCache));
         if (!profile.HasValue)
         {
             return;
         }
 
-        glowColor = Lighting.GetColor(x, y) * 2f;
-        renderCtx.Value.Renderer.GetGlowData(renderCtx.Value, profile.Value, tileCache, tileWidth, tileHeight, out glowTexture, out glowSourceRect);
+        if (GlowingGemsEnabled)
+        {
+            glowColor = Lighting.GetColor(x, y) * 2f;
+        }
+
+        RenderCtx.Value.Renderer.GetGlowData(RenderCtx.Value, profile.Value, tileCache, tileWidth, tileHeight, out glowTexture, out glowSourceRect);
     }
 
     public static int GetBiomeFromTile(Tile tile)
@@ -296,10 +297,6 @@ public static class GemTreeRendering
             {
                 continue;
             }
-
-            renderCtx = Sets.GemTreeRenderers[tile.TileType] is { } renderer
-                ? renderer.GetContext(x, y)
-                : null;
 
             var type = tile.type;
             var frameX = tile.frameX;
@@ -392,20 +389,7 @@ public static class GemTreeRendering
                             {
                                 color6 = Color.White;
                             }
-
-                            var profile = GemTreeVanityProfiles.GetProfile(tile.TileType);
-                            if (profile.HasValue && renderCtx.HasValue)
-                            {
-                                treeTopTexture = profile.Value.GetDescription(renderCtx.Value.CurrentBiome).Tops.Value;
-                            }
-
-                            Main.spriteBatch.Draw(treeTopTexture, vector, new Rectangle(treeFrame * (topTextureFrameWidth3 + 2), 0, topTextureFrameWidth3, topTextureFrameHeight3), color6, num15 * num3, new Vector2(topTextureFrameWidth3 / 2, topTextureFrameHeight3), 1f, SpriteEffects.None, 0f);
-
-                            if (profile.HasValue && renderCtx.HasValue)
-                            {
-                                Main.spriteBatch.Draw((profile.Value.GetDescription(renderCtx.Value.CurrentBiome).TopsGems ?? profile.Value.Purity.TopsGems!).Value, vector, new Rectangle(treeFrame * (topTextureFrameWidth3 + 2), 0, topTextureFrameWidth3, topTextureFrameHeight3), color6 * 2f, num15 * num3, new Vector2(topTextureFrameWidth3 / 2, topTextureFrameHeight3), 1f, SpriteEffects.None, 0f);
-                            }
-
+                            
                             if (type == 634)
                             {
                                 var value3 = TextureAssets.GlowMask[316].Value;
@@ -468,16 +452,16 @@ public static class GemTreeRendering
                             }
 
                             var profile = GemTreeVanityProfiles.GetProfile(tile.TileType);
-                            if (profile.HasValue && renderCtx.HasValue)
+                            if (profile.HasValue && RenderCtx.HasValue)
                             {
-                                treeBranchTexture2 = profile.Value.GetDescription(renderCtx.Value.CurrentBiome).Branches.Value;
+                                treeBranchTexture2 = profile.Value.GetDescription(RenderCtx.Value.CurrentBiome).Branches.Value;
                             }
 
                             Main.spriteBatch.Draw(treeBranchTexture2, position2, new Rectangle(0, treeFrame * 42, 40, 40), color4, num12 * num4, new Vector2(40f, 24f), 1f, SpriteEffects.None, 0f);
 
-                            if (profile.HasValue && renderCtx.HasValue)
+                            if (profile.HasValue && RenderCtx.HasValue)
                             {
-                                Main.spriteBatch.Draw((profile.Value.GetDescription(renderCtx.Value.CurrentBiome).BranchesGems ?? profile.Value.Purity.BranchesGems!).Value, position2, new Rectangle(0, treeFrame * 42, 40, 40), color4 * 2f, num12 * num4, new Vector2(40f, 24f), 1f, SpriteEffects.None, 0f);
+                                Main.spriteBatch.Draw((profile.Value.GetDescription(RenderCtx.Value.CurrentBiome).BranchesGems ?? profile.Value.Purity.BranchesGems!).Value, position2, new Rectangle(0, treeFrame * 42, 40, 40), color4 * 2f, num12 * num4, new Vector2(40f, 24f), 1f, SpriteEffects.None, 0f);
                             }
 
                             if (type == 634)
@@ -542,16 +526,16 @@ public static class GemTreeRendering
                             }
 
                             var profile = GemTreeVanityProfiles.GetProfile(tile.TileType);
-                            if (profile.HasValue && renderCtx.HasValue)
+                            if (profile.HasValue && RenderCtx.HasValue)
                             {
-                                treeBranchTexture = profile.Value.GetDescription(renderCtx.Value.CurrentBiome).Branches.Value;
+                                treeBranchTexture = profile.Value.GetDescription(RenderCtx.Value.CurrentBiome).Branches.Value;
                             }
 
                             Main.spriteBatch.Draw(treeBranchTexture, position, new Rectangle(42, treeFrame * 42, 40, 40), color2, num8 * num4, new Vector2(0f, 30f), 1f, SpriteEffects.None, 0f);
 
-                            if (profile.HasValue && renderCtx.HasValue)
+                            if (profile.HasValue && RenderCtx.HasValue)
                             {
-                                Main.spriteBatch.Draw((profile.Value.GetDescription(renderCtx.Value.CurrentBiome).BranchesGems ?? profile.Value.Purity.BranchesGems!).Value, position, new Rectangle(42, treeFrame * 42, 40, 40), color2 * 2f, num8 * num4, new Vector2(0f, 30f), 1f, SpriteEffects.None, 0f);
+                                Main.spriteBatch.Draw((profile.Value.GetDescription(RenderCtx.Value.CurrentBiome).BranchesGems ?? profile.Value.Purity.BranchesGems!).Value, position, new Rectangle(42, treeFrame * 42, 40, 40), color2 * 2f, num8 * num4, new Vector2(0f, 30f), 1f, SpriteEffects.None, 0f);
                             }
 
                             if (type == 634)
@@ -640,16 +624,16 @@ public static class GemTreeRendering
                     }
 
                     var profile = GemTreeVanityProfiles.GetProfile(tile.TileType);
-                    if (profile.HasValue && renderCtx.HasValue)
+                    if (profile.HasValue && RenderCtx.HasValue)
                     {
-                        treeTopTexture2 = profile.Value.GetDescription(renderCtx.Value.CurrentBiome).Tops.Value;
+                        treeTopTexture2 = profile.Value.GetDescription(RenderCtx.Value.CurrentBiome).Tops.Value;
                     }
 
                     Main.spriteBatch.Draw(treeTopTexture2, position3, new Rectangle(num16 * (num17 + 2), y2, num17, num18), color7, num21 * num3, new Vector2(num17 / 2, num18), 1f, SpriteEffects.None, 0f);
 
-                    if (profile.HasValue && renderCtx.HasValue)
+                    if (profile.HasValue && RenderCtx.HasValue)
                     {
-                        Main.spriteBatch.Draw((profile.Value.GetDescription(renderCtx.Value.CurrentBiome).TopsGems ?? profile.Value.Purity.TopsGems!).Value, position3, new Rectangle(num16 * (num17 + 2), y2, num17, num18), color7 * 2f, num21 * num3, new Vector2(num17 / 2, num18), 1f, SpriteEffects.None, 0f);
+                        Main.spriteBatch.Draw((profile.Value.GetDescription(RenderCtx.Value.CurrentBiome).TopsGems ?? profile.Value.Purity.TopsGems!).Value, position3, new Rectangle(num16 * (num17 + 2), y2, num17, num18), color7 * 2f, num21 * num3, new Vector2(num17 / 2, num18), 1f, SpriteEffects.None, 0f);
                     }
                 }
             }
@@ -659,7 +643,7 @@ public static class GemTreeRendering
             }
             finally
             {
-                renderCtx = null;
+                RenderCtx = null;
             }
         }
     }
