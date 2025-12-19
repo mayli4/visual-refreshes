@@ -5,9 +5,8 @@ global using Terraria.ModLoader;
 
 namespace TreesMod;
 
-partial class ModImpl : Mod {
+partial class ModImpl {
     public ModImpl() {
         MusicAutoloadingEnabled = false;
-        CloudAutoloadingEnabled = false;
     }
 }
