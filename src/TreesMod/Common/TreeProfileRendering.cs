@@ -8,7 +8,7 @@ using Terraria.Utilities;
 namespace TreesMod.Common;
 
 [UsedImplicitly]
-internal sealed class ReplaceTreetopTextures {
+internal sealed class TreeProfileRendering {
     [OnLoad, UsedImplicitly]
     static void InjectHooks() {
         On_TileDrawing.DrawTrees += On_TileDrawingOnDrawTrees;
@@ -113,7 +113,7 @@ internal sealed class ReplaceTreetopTextures {
                             if(tile.fullbrightBlock())
                                 color6 = Color.White;
 
-                            TreetopProfiles.TryGetProfile(treeStyle3, out var profile);
+                            TreeProfiles.TryGetProfile(treeStyle3, out var profile);
                             var variation = profile.GetVariation(treeFrame);
 
                             Rectangle rect = new(treeFrame * (variation.Width + 2), 0, variation.Width, variation.Height);

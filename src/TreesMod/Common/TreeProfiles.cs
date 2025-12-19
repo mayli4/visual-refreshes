@@ -18,7 +18,7 @@ public readonly record struct TreeStyleProfile(int PaintIdx, Asset<Texture2D> To
     }
 }
 
-public static class TreetopProfiles {
+public static class TreeProfiles {
     private const int treetop_resize_buffer = 128;
     
     public static readonly Dictionary<int, TreeStyleProfile> Profiles = new();
