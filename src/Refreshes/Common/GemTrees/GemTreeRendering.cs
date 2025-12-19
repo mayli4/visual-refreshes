@@ -91,20 +91,30 @@ public static class GemTreeRendering
     [OnLoad]
     private static void ApplyHooks()
     {
-        On_TileDrawing.DrawSingleTile += DrawSingleTile;
-        On_TileDrawing.GetTileDrawData += GetTileDrawData;
-        On_TileDrawing.GetTileDrawTexture_Tile_int_int += GetTileDrawTexture_Tile_int_int;
-        On_TileDrawing.GetTileDrawTexture_Tile_int_int_int += GetTileDrawTexture_Tile_int_int_int;
-        On_TileDrawing.DrawAnimatedTile_AdjustForVisionChangers += DrawAnimatedTile_AdjustForVisionChangers;
+        On_TileDrawing.DrawSingleTile += DrawSingleTile_DrawGemProfileVariants;
+        On_TileDrawing.GetTileDrawData += GetTileDrawData_OverrideWithGemProfileVariants;
+        On_TileDrawing.GetTileDrawTexture_Tile_int_int += GetTileDrawTexture_Tile_int_int_OverrideWithGemProfileVariants;
+        On_TileDrawing.GetTileDrawTexture_Tile_int_int_int += GetTileDrawTexture_Tile_int_int_int_OverrideWithGemProfileVariants;
+        On_TileDrawing.DrawAnimatedTile_AdjustForVisionChangers += DrawAnimatedTile_AdjustForVisionChangers_ClearRenderContext;
 
         On_TileDrawing.DrawTrees += DrawTrees;
 
-        On_WorldGen.KillTile_GetItemDrops += ChangeStoneTypeForGemTrees;
+        On_WorldGen.KillTile_GetItemDrops += KillTile_GetItemDrops_ChangeStoneTypeForGemTrees;
     }
 
-    private static void DrawSingleTile(On_TileDrawing.orig_DrawSingleTile orig, TileDrawing self, TileDrawInfo drawData, bool solidLayer, int waterStyleOverride, Vector2 screenPosition, Vector2 screenOffset, int tileX, int tileY)
+    private static void DrawSingleTile_DrawGemProfileVariants(
+        On_TileDrawing.orig_DrawSingleTile orig,
+        TileDrawing self,
+        TileDrawInfo drawData,
+        bool solidLayer,
+        int waterStyleOverride,
+        Vector2 screenPosition,
+        Vector2 screenOffset,
+        int tileX,
+        int tileY
+    )
     {
-        if (Sets.GemTreeRenderers[Main.tile[tileX, tileY].TileType] is not { } renderer)
+        if (!BiomeVariantsEnabled || Sets.GemTreeRenderers[Main.tile[tileX, tileY].TileType] is not { } renderer)
         {
             orig(self, drawData, solidLayer, waterStyleOverride, screenPosition, screenOffset, tileX, tileY);
             return;
@@ -121,7 +131,7 @@ public static class GemTreeRendering
         }
     }
 
-    private static Texture2D GetTileDrawTexture_Tile_int_int(
+    private static Texture2D GetTileDrawTexture_Tile_int_int_OverrideWithGemProfileVariants(
         On_TileDrawing.orig_GetTileDrawTexture_Tile_int_int orig,
         TileDrawing self,
         Tile tile,
@@ -129,6 +139,11 @@ public static class GemTreeRendering
         int tileY
     )
     {
+        if (!BiomeVariantsEnabled)
+        {
+            return orig(self, tile, tileX, tileY);
+        }
+
         // Special case for tiles drawn in DrawGrass.
         if (!renderCtx.HasValue)
         {
@@ -151,7 +166,7 @@ public static class GemTreeRendering
         return renderCtx.Value.Renderer.GetTileDrawTexture(renderCtx.Value, profile.Value).Value;
     }
 
-    private static Texture2D GetTileDrawTexture_Tile_int_int_int(
+    private static Texture2D GetTileDrawTexture_Tile_int_int_int_OverrideWithGemProfileVariants(
         On_TileDrawing.orig_GetTileDrawTexture_Tile_int_int_int orig,
         TileDrawing self,
         Tile tile,
@@ -160,7 +175,7 @@ public static class GemTreeRendering
         int paintOverride
     )
     {
-        if (!renderCtx.HasValue)
+        if (!BiomeVariantsEnabled || !renderCtx.HasValue)
         {
             return orig(self, tile, tileX, tileY, paintOverride);
         }
@@ -174,7 +189,7 @@ public static class GemTreeRendering
         return renderCtx.Value.Renderer.GetTileDrawTexture(renderCtx.Value, profile.Value).Value;
     }
 
-    private static void DrawAnimatedTile_AdjustForVisionChangers(
+    private static void DrawAnimatedTile_AdjustForVisionChangers_ClearRenderContext(
         On_TileDrawing.orig_DrawAnimatedTile_AdjustForVisionChangers orig,
         TileDrawing self,
         int i,
@@ -193,7 +208,7 @@ public static class GemTreeRendering
         renderCtx = null;
     }
 
-    private static void GetTileDrawData(
+    private static void GetTileDrawData_OverrideWithGemProfileVariants(
         On_TileDrawing.orig_GetTileDrawData orig,
         TileDrawing self,
         int x,
@@ -214,9 +229,27 @@ public static class GemTreeRendering
         out Color glowColor
     )
     {
-        orig(self, x, y, tileCache, typeCache, ref tileFrameX, ref tileFrameY, out tileWidth, out tileHeight, out tileTop, out halfBrickHeight, out addFrX, out addFrY, out tileSpriteEffect, out glowTexture, out glowSourceRect, out glowColor);
+        orig(
+            self,
+            x,
+            y,
+            tileCache,
+            typeCache,
+            ref tileFrameX,
+            ref tileFrameY,
+            out tileWidth,
+            out tileHeight,
+            out tileTop,
+            out halfBrickHeight,
+            out addFrX,
+            out addFrY,
+            out tileSpriteEffect,
+            out glowTexture,
+            out glowSourceRect,
+            out glowColor
+        );
 
-        if (!renderCtx.HasValue)
+        if (!BiomeVariantsEnabled || !renderCtx.HasValue)
         {
             return;
         }
@@ -631,7 +664,7 @@ public static class GemTreeRendering
         }
     }
 
-    private static void ChangeStoneTypeForGemTrees(
+    private static void KillTile_GetItemDrops_ChangeStoneTypeForGemTrees(
         On_WorldGen.orig_KillTile_GetItemDrops orig,
         int x,
         int y,
@@ -645,7 +678,7 @@ public static class GemTreeRendering
     {
         orig(x, y, tileCache, out dropItem, out dropItemStack, out secondaryItem, out secondaryItemStack, includeLargeObjectDrops);
 
-        if (Sets.GemTreeRenderers[tileCache.TileType] is not { } renderer)
+        if (!BiomeVariantDropsEnabled || Sets.GemTreeRenderers[tileCache.TileType] is not { } renderer)
         {
             return;
         }
@@ -669,9 +702,9 @@ public static class GemTreeRendering
     }
 
     [GlobalTileHooks.CreateDust]
-    private static void CreateDust_ChangeDust(int i, int j, int type, ref int dustType)
+    private static void CreateDust_ChangeDustTypeForGemTrees(int i, int j, int type, ref int dustType)
     {
-        if (Sets.GemTreeRenderers[Main.tile[i, j].TileType] is not { } renderer)
+        if (!BiomeVariantsEnabled || Sets.GemTreeRenderers[Main.tile[i, j].TileType] is not { } renderer)
         {
             return;
         }
