@@ -1,4 +1,5 @@
 using System;
+using Daybreak.Common.Features.Hooks;
 using ReLogic.Content;
 using Terraria.DataStructures;
 using Terraria.GameContent;
@@ -11,22 +12,44 @@ namespace Refreshes.Content;
 
 public abstract class GemTreeRenderer
 {
-    public abstract RendererContext GetContext(int tileX, int tileY);
+    public abstract RendererContext GetContext(
+        int tileX,
+        int tileY
+    );
 
-    public abstract int GetTreeTileType(Tile tile);
+    public abstract int GetTreeTileType(
+        Tile tile
+    );
 
-    public abstract Asset<Texture2D> GetTileDrawTexture(RendererContext ctx, GemTreeVanityProfile profile);
+    public abstract Asset<Texture2D> GetTileDrawTexture(
+        RendererContext ctx,
+        GemTreeVanityProfile profile
+    );
 
-    public abstract void GetGlowData(RendererContext ctx, GemTreeVanityProfile profile, Tile tile, int tileWidth, int tileHeight, out Texture2D glowTexture, out Rectangle glowSourceRect);
+    public abstract void GetGlowData(
+        RendererContext ctx,
+        GemTreeVanityProfile profile,
+        Tile tile,
+        int tileWidth,
+        int tileHeight,
+        out Texture2D glowTexture,
+        out Rectangle glowSourceRect
+    );
 }
 
 public sealed class TreeRenderer : GemTreeRenderer
 {
     public override RendererContext GetContext(int tileX, int tileY)
     {
-        WorldGen.GetTreeBottom(tileX, tileY, out var treeBottomX, out var treeBottomY);
+        WorldGen.GetTreeBottom(
+            tileX,
+            tileY,
+            out var treeBottomX,
+            out var treeBottomY
+        );
+
         var tileHoldingTree = Framing.GetTileSafely(treeBottomX, treeBottomY);
-        var currentBiome = Refreshes.Content.GemTreeRendering.GetBiomeFromTile(tileHoldingTree);
+        var currentBiome = GemTreeRendering.GetBiomeFromTile(tileHoldingTree);
         return new RendererContext(this, currentBiome);
     }
 
@@ -40,7 +63,15 @@ public sealed class TreeRenderer : GemTreeRenderer
         return profile.GetDescription(ctx.CurrentBiome).Trunk;
     }
 
-    public override void GetGlowData(RendererContext ctx, GemTreeVanityProfile profile, Tile tile, int tileWidth, int tileHeight, out Texture2D glowTexture, out Rectangle glowSourceRect)
+    public override void GetGlowData(
+        RendererContext ctx,
+        GemTreeVanityProfile profile,
+        Tile tile,
+        int tileWidth,
+        int tileHeight,
+        out Texture2D glowTexture,
+        out Rectangle glowSourceRect
+    )
     {
         glowTexture = (profile.GetDescription(ctx.CurrentBiome).TrunkGems ?? profile.Purity.TrunkGems!).Value;
         glowSourceRect = new Rectangle(tile.frameX, tile.TileFrameY, tileWidth, tileHeight);
@@ -57,7 +88,7 @@ public sealed class SaplingRenderer : GemTreeRenderer
             tile = Framing.GetTileSafely(tileX, tileY++);
         }
 
-        var currentBiome = Refreshes.Content.GemTreeRendering.GetBiomeFromTile(tile);
+        var currentBiome = GemTreeRendering.GetBiomeFromTile(tile);
         return new RendererContext(this, currentBiome);
     }
 
@@ -95,44 +126,47 @@ public sealed class SaplingRenderer : GemTreeRenderer
 
 public readonly record struct RendererContext(GemTreeRenderer Renderer, int CurrentBiome);
 
-public sealed partial class GemTreeRendering : ModSystem
+/// <summary>
+///     Handles special rendering of gem tree variants.
+/// </summary>
+public static class GemTreeRendering
 {
-    private sealed class GemTreeEffects : GlobalTile
+    /// <summary>
+    ///     ID sets pertaining to the rendering of gem trees.
+    /// </summary>
+    public static class Sets
     {
-        public override bool CreateDust(int i, int j, int type, ref int dustType)
+        private static readonly object[] default_renderers =
+        [
+            TileID.TreeTopaz, new TreeRenderer(),
+            TileID.TreeAmethyst, new TreeRenderer(),
+            TileID.TreeSapphire, new TreeRenderer(),
+            TileID.TreeEmerald, new TreeRenderer(),
+            TileID.TreeRuby, new TreeRenderer(),
+            TileID.TreeDiamond, new TreeRenderer(),
+            TileID.TreeAmber, new TreeRenderer(),
+            TileID.GemSaplings, new SaplingRenderer(),
+        ];
+
+        /// <summary>
+        ///     The given <see cref="GemTreeRenderer"/> to use for a tile ID.
+        /// </summary>
+        public static GemTreeRenderer?[] GemTreeRenderers { get; private set; } = [];
+
+        [ModSystemHooks.ResizeArrays]
+        private static void ResizeArrays()
         {
-            if (GemTreeRenderers[Main.tile[i, j].TileType] is not { } renderer)
-            {
-                return true;
-            }
-
-            var ctx = renderer.GetContext(i, j);
-            if (ctx.CurrentBiome == -1 || ctx.CurrentBiome == BiomeConversionID.Purity)
-            {
-                return true;
-            }
-
-            if (dustType == DustID.Stone)
-            {
-                dustType = ctx.CurrentBiome switch
-                {
-                    BiomeConversionID.Corruption => Main.rand.NextBool() ? DustID.Stone : DustID.Corruption,
-                    BiomeConversionID.Crimson => DustID.Crimstone,
-                    BiomeConversionID.Hallow => DustID.Stone,
-                    _ => dustType,
-                };
-            }
-
-            return true;
+            GemTreeRenderers = TileID.Sets.Factory.CreateNamedSet(ModContent.GetInstance<ModImpl>(), nameof(GemTreeRenderers))
+                                     .Description("Renderers for gem trees")
+                                     .RegisterCustomSet(default(GemTreeRenderer), default_renderers);
         }
     }
 
     private static RendererContext? renderCtx;
 
-    public override void Load()
+    [OnLoad]
+    private static void ApplyHooks()
     {
-        base.Load();
-
         On_TileDrawing.DrawSingleTile += DrawSingleTile;
         On_TileDrawing.GetTileDrawData += GetTileDrawData;
         On_TileDrawing.GetTileDrawTexture_Tile_int_int += GetTileDrawTexture_Tile_int_int;
@@ -148,7 +182,7 @@ public sealed partial class GemTreeRendering : ModSystem
     {
         orig(x, y, tileCache, out dropItem, out dropItemStack, out secondaryItem, out secondaryItemStack, includeLargeObjectDrops);
 
-        if (GemTreeRenderers[tileCache.TileType] is not { } renderer)
+        if (Sets.GemTreeRenderers[tileCache.TileType] is not { } renderer)
         {
             return;
         }
@@ -173,7 +207,7 @@ public sealed partial class GemTreeRendering : ModSystem
 
     private static void DrawSingleTile(On_TileDrawing.orig_DrawSingleTile orig, TileDrawing self, TileDrawInfo drawData, bool solidLayer, int waterStyleOverride, Vector2 screenPosition, Vector2 screenOffset, int tileX, int tileY)
     {
-        if (GemTreeRenderers[Main.tile[tileX, tileY].TileType] is not { } renderer)
+        if (Sets.GemTreeRenderers[Main.tile[tileX, tileY].TileType] is not { } renderer)
         {
             orig(self, drawData, solidLayer, waterStyleOverride, screenPosition, screenOffset, tileX, tileY);
             return;
@@ -195,7 +229,7 @@ public sealed partial class GemTreeRendering : ModSystem
         // Special case for tiles drawn in DrawGrass.
         if (!renderCtx.HasValue)
         {
-            if (GemTreeRenderers[tile.TileType] is { } renderer)
+            if (Sets.GemTreeRenderers[tile.TileType] is { } renderer)
             {
                 renderCtx = renderer.GetContext(tileX, tileY);
             }
@@ -287,7 +321,7 @@ public sealed partial class GemTreeRendering : ModSystem
                 continue;
             }
 
-            renderCtx = GemTreeRenderers[tile.TileType] is { } renderer
+            renderCtx = Sets.GemTreeRenderers[tile.TileType] is { } renderer
                 ? renderer.GetContext(x, y)
                 : null;
 
@@ -651,6 +685,32 @@ public sealed partial class GemTreeRendering : ModSystem
             {
                 renderCtx = null;
             }
+        }
+    }
+
+    [GlobalTileHooks.CreateDust]
+    private static void CreateDust_ChangeDust(int i, int j, int type, ref int dustType)
+    {
+        if (Sets.GemTreeRenderers[Main.tile[i, j].TileType] is not { } renderer)
+        {
+            return;
+        }
+
+        var ctx = renderer.GetContext(i, j);
+        if (ctx.CurrentBiome == -1 || ctx.CurrentBiome == BiomeConversionID.Purity)
+        {
+            return;
+        }
+
+        if (dustType == DustID.Stone)
+        {
+            dustType = ctx.CurrentBiome switch
+            {
+                BiomeConversionID.Corruption => Main.rand.NextBool() ? DustID.Stone : DustID.Corruption,
+                BiomeConversionID.Crimson => DustID.Crimstone,
+                BiomeConversionID.Hallow => DustID.Stone,
+                _ => dustType,
+            };
         }
     }
 }
