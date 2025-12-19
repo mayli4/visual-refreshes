@@ -37,7 +37,8 @@ public readonly record struct TreeStyleProfile(
     int TreeTopIdx,
     Asset<Texture2D> TopTexture,
     Asset<Texture2D> BranchTexture,
-    TreetopVariation[] Variations
+    TreetopVariation[] Variations,
+    float WindScale = 1f
 )
 {
     /// <summary>

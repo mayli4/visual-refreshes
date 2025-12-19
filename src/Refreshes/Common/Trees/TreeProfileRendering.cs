@@ -137,7 +137,7 @@ internal sealed class TreeProfileRendering
                             var topTexture = treeProfile.GetTop(tileColor);
                             var topPos = new Vector2(x * 16 - (int)screenPosition.X + 8, y * 16 - (int)screenPosition.Y + 16);
 
-                            var windIntensity = hasWall ? 0f : self.GetWindCycle(x, y, self._treeWindCounter);
+                            var windIntensity = hasWall ? 0f : self.GetWindCycle(x, y, self._treeWindCounter) * treeProfile.WindScale;
                             {
                                 topPos.X += windIntensity * 2f;
                                 topPos.Y += Math.Abs(windIntensity) * 2f;
