@@ -119,27 +119,33 @@ internal sealed class ReplaceTreetopTextures {
 
                             Vector2 origin;
                             Rectangle rect;
-                            //hardcoded, todo
-                            if (treeStyle3 == 0 && seededRandom.NextFloat() < customRectChance) {
-                                rect = new Rectangle(0, 0, 216, 190);
-                                vector.X -= 2;
-                                vector.Y += 4;
-
-                                origin = new Vector2(216 / 2, 190);
-                                
-                                num15 = self.GetWindCycle(x, y, self._treeWindCounter) * 0.5f;
-
-                                treeTopTexture = Assets.Images.Content.Trees.Tree_Tops_0.Asset.Value;
-                                //treeTopTexture = profile.TopTexture.Value;
-                            } else {
-                                rect = new Rectangle(treeFrame * (topTextureFrameWidth3 + 2), 0, topTextureFrameWidth3, topTextureFrameHeight3);
-
-                                origin = new Vector2(topTextureFrameWidth3 / 2, topTextureFrameHeight3);
-                            }
+                            //hardcoded big tree style, todo: reimplement using profiles when ready
+                            // if (treeStyle3 == 0 && seededRandom.NextFloat() < customRectChance) {
+                            //     rect = new Rectangle(0, 0, 216, 190);
+                            //     vector.X -= 2;
+                            //     vector.Y += 4;
+                            //
+                            //     origin = new Vector2(216 / 2, 190);
+                            //     
+                            //     num15 = self.GetWindCycle(x, y, self._treeWindCounter) * 0.5f;
+                            //
+                            //     //treeTopTexture = Assets.Images.Content.Trees.Tree_Tops_0.Asset.Value;
+                            //     treeTopTexture = profile.GetTop(tile.color());
+                            // } else {
+                            //     rect = new Rectangle(treeFrame * (topTextureFrameWidth3 + 2), 0, topTextureFrameWidth3, topTextureFrameHeight3);
+                            //
+                            //     origin = new Vector2(topTextureFrameWidth3 / 2, topTextureFrameHeight3);
+                            // }
                             
-                            Main.spriteBatch.Draw(treeTopTexture, vector,
+                            rect = new Rectangle(treeFrame * (topTextureFrameWidth3 + 2), 0, topTextureFrameWidth3, topTextureFrameHeight3);
+
+                            origin = new Vector2(topTextureFrameWidth3 / 2, topTextureFrameHeight3);
+                            
+                            var variation = profile.GetVariation(treeFrame);
+                            
+                            Main.spriteBatch.Draw(profile.GetTop(tileColor3), vector,
                                 rect, color6, num15 * num3,
-                                origin, 1f, SpriteEffects.None,
+                                origin + variation.OriginOffset, 1f, SpriteEffects.None,
                                 0f);
                             
                             if(type == 634) {
