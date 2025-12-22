@@ -6,6 +6,7 @@ using System;
 using System.Reflection;
 using Terraria.Audio;
 using Terraria.Graphics.Renderers;
+using Terraria.ID;
 
 namespace Refreshes.Content.HookEffects;
 
@@ -15,9 +16,17 @@ internal sealed class HookEffects {
         MethodInfo method = typeof(Projectile).GetMethod("AI_007_GrapplingHooks", BindingFlags.Instance | BindingFlags.NonPublic);
         MonoModHooks.Modify(method, SpawnSparksOnHit);
     }
-    private static void SpawnSparksOnHit(ILContext il) {
+    private static void SpawnSparksOnHit(ILContext il)
+    {
         ILCursor c = new ILCursor(il);
-        c.TryGotoNext(MoveType.After, i => i.MatchCall("Terraria.Audio.SoundEngine", "PlaySound"));
+        c.TryGotoNext(MoveType.Before,i => i.MatchCall("Terraria.Audio.SoundEngine", "PlaySound"));
+        // remove original PlaySound call, due to it using a different overload
+        c.Remove();
+        // capture all the parameters from the stack, but don't use them
+        c.EmitDelegate((int type, int x, int y, int style, float volumeScale, float pitchOffset) =>
+        {
+            return SoundEngine.PlaySound(SoundID.Item52 with { Pitch = 0.5f }, new Vector2(x, y));
+        });
         c.EmitLdarg0();
         c.EmitDelegate((Projectile self) =>
         {
