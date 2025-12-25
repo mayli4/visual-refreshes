@@ -33,7 +33,7 @@ public sealed class NewRainbowRod : GlobalProjectile
         {
             var particleVel = projectile.velocity.RotatedByRandom(0.2f) * Main.rand.NextFloat(0.5f) + Main.rand.NextVector2Circular(2, 2);
             var particle = DustFlameParticle.RequestNew(projectile.Center, particleVel, glowColor, Color.White with { A = 0 }, Main.rand.NextFloat(1f, 1.75f), Main.rand.Next(15, 25));
-            ParticleEngine.Particles.Add(particle);
+            ParticleEngine.PARTICLES.Add(particle);
         }
 
         if (Main.rand.NextBool(5))
@@ -48,7 +48,7 @@ public sealed class NewRainbowRod : GlobalProjectile
             sparkle.ColorTint = sparkleColor;
             sparkle.TimeToLive = Main.rand.Next(30, 60);
             sparkle.Scale = new Vector2(size);
-            ParticleEngine.Particles.Add(sparkle);
+            ParticleEngine.PARTICLES.Add(sparkle);
         }
     }
 

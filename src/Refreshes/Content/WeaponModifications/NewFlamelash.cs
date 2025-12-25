@@ -25,7 +25,7 @@ public sealed class NewFlamelash : GlobalProjectile
             var lightColor = Color.Lerp(Color.Gold, Color.PaleGoldenrod, Main.rand.NextBool(4).ToInt()) with { A = 50 };
             var particle = DustFlameParticle.RequestNew(projectile.Center + projectile.velocity * 2f, particleVel, new Color(255, 15, 35, 80), lightColor, Main.rand.NextFloat(0.5f, 1.5f), Main.rand.Next(24, 35));
             particle.LossPerFrame = 0.05f;
-            ParticleEngine.Particles.Add(particle);
+            ParticleEngine.PARTICLES.Add(particle);
         }
 
         if (Main.rand.NextBool(6) && (projectile.velocity.Length() < 2f || Main.rand.NextBool()))
@@ -35,7 +35,7 @@ public sealed class NewFlamelash : GlobalProjectile
             var particle = DustFlameParticle.RequestNew(projectile.Center, particleVel, new Color(255, 15, 35, 40), lightColor, Main.rand.NextFloat(1f, 1.5f), Main.rand.Next(20, 25));
             particle.LossPerFrame = 0.3f;
             particle.Swirly = true;
-            ParticleEngine.Particles.Add(particle);
+            ParticleEngine.PARTICLES.Add(particle);
         }
     }
 

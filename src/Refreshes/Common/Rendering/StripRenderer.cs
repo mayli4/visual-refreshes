@@ -11,9 +11,9 @@ public static class StripRenderer
         public Color Color;
         public Vector3 TextureCoordinate;
 
-        public VertexDeclaration VertexDeclaration => Declaration;
+        public VertexDeclaration VertexDeclaration => declaration;
 
-        private static readonly VertexDeclaration Declaration = new(
+        private static readonly VertexDeclaration declaration = new(
             new VertexElement(0, VertexElementFormat.Vector2, VertexElementUsage.Position, 0),
             new VertexElement(8, VertexElementFormat.Color, VertexElementUsage.Color, 0),
             new VertexElement(12, VertexElementFormat.Vector3, VertexElementUsage.TextureCoordinate, 0)

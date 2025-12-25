@@ -93,7 +93,7 @@ public static class TreeProfiles
     private const int big_style_offset = 40;
 
     private static readonly List<TreeStyleProfile> profiles = Enumerable.Repeat(default(TreeStyleProfile), (int)VanillaTreeStyle.Count).ToList();
-    private static readonly Dictionary<int, TreeStyleProfile> altProfiles = new();
+    private static readonly Dictionary<int, TreeStyleProfile> alt_profiles = new();
 
     private static Asset<Texture2D>[]? oldTreeTops;
 
@@ -104,7 +104,7 @@ public static class TreeProfiles
 
     public static bool TryGetAlternative(int style, out TreeStyleProfile altProfile)
     {
-        return altProfiles.TryGetValue(style, out altProfile);
+        return alt_profiles.TryGetValue(style, out altProfile);
     }
 
     [ModSystemHooks.ResizeArrays]
@@ -118,7 +118,7 @@ public static class TreeProfiles
     private static void RestoreVanillaTreeTops()
     {
         profiles.Clear();
-        altProfiles.Clear();
+        alt_profiles.Clear();
 
         if (oldTreeTops is not null)
         {
@@ -144,7 +144,7 @@ public static class TreeProfiles
 
         TextureAssets.TreeTop[paintIdx] = tex;
 
-        altProfiles[style] = new TreeStyleProfile(
+        alt_profiles[style] = new TreeStyleProfile(
             TreeTopIdx: paintIdx,
             TopTexture: tex,
             BranchTexture: branches,

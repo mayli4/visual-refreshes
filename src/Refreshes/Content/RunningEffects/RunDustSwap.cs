@@ -8,19 +8,19 @@ namespace Refreshes.Content;
 
 internal sealed class RunDustSwap
 {
-    private static ILHook _spawnFastRunParticlesHook;
+    private static ILHook spawnFastRunParticlesHook;
 
     [OnLoad]
     private static void ApplyEdits()
     {
-        var m_spawnFastRunParticles = typeof(Player).GetMethod("SpawnFastRunParticles", BindingFlags.Instance | BindingFlags.NonPublic);
-        _spawnFastRunParticlesHook = new ILHook(m_spawnFastRunParticles, ReplaceRunningDusts);
+        var mSpawnFastRunParticles = typeof(Player).GetMethod("SpawnFastRunParticles", BindingFlags.Instance | BindingFlags.NonPublic);
+        spawnFastRunParticlesHook = new ILHook(mSpawnFastRunParticles, ReplaceRunningDusts);
     }
 
     [OnUnload]
     private static void Unhook()
     {
-        _spawnFastRunParticlesHook.Dispose();
+        spawnFastRunParticlesHook.Dispose();
     }
 
     private static void ReplaceRunningDusts(ILContext ctx)

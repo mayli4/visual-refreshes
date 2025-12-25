@@ -51,7 +51,7 @@ internal sealed class TreeProfileRendering
         var treeHeight = grassPosY - tilePosY;
         WorldGen.GetTreeLeaf(tilePosX, topTile, Main.tile[grassPosX, grassPosY], ref treeHeight, out _, out var passStyle);
 
-        if (isLeafStyleIgnored(passStyle))
+        if (IsLeafStyleIgnored(passStyle))
         {
             return;
         }
@@ -132,7 +132,7 @@ internal sealed class TreeProfileRendering
 
         return;
 
-        static bool isLeafStyleIgnored(int style)
+        static bool IsLeafStyleIgnored(int style)
         {
             return style switch
             {

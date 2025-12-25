@@ -12,14 +12,14 @@ public class DustFlameParticle : BaseParticle<DustFlameParticle>
 
     public int LifeTime;
     public float LossPerFrame;
-    private int MaxLifeTime;
+    private int maxLifeTime;
 
     public Vector2 Position;
     public float Rotation;
     public float Scale;
 
     public bool Swirly;
-    private int Variant;
+    private int variant;
     public Vector2 Velocity;
 
     public static DustFlameParticle RequestNew(Vector2 position, Vector2 velocity, Color color, Color insideColor, float scale, int lifeTime = 20)
@@ -30,8 +30,8 @@ public class DustFlameParticle : BaseParticle<DustFlameParticle>
         particle.ColorTint = color;
         particle.ColorInsideTint = insideColor;
         particle.Scale = scale;
-        particle.MaxLifeTime = lifeTime;
-        particle.Variant = Main.rand.Next(6);
+        particle.maxLifeTime = lifeTime;
+        particle.variant = Main.rand.Next(6);
         particle.Rotation = (int)Math.Round(velocity.ToRotation() / MathHelper.PiOver4) * MathHelper.PiOver4 + MathHelper.PiOver2;
         particle.LossPerFrame = 0.15f;
         return particle;
@@ -58,7 +58,7 @@ public class DustFlameParticle : BaseParticle<DustFlameParticle>
             Velocity *= 0.8f;
         }
 
-        if (++LifeTime >= MaxLifeTime)
+        if (++LifeTime >= maxLifeTime)
         {
             ShouldBeRemovedFromRenderer = true;
         }
@@ -66,15 +66,15 @@ public class DustFlameParticle : BaseParticle<DustFlameParticle>
 
     public override void Draw(ref ParticleRendererSettings settings, SpriteBatch spritebatch)
     {
-        var progress = (float)LifeTime / MaxLifeTime;
+        var progress = (float)LifeTime / maxLifeTime;
 
         var frameCount = Swirly ? 8 : 10;
         var texture = Swirly ? Assets.Images.Particles.SwirlyFlameParticle.Asset.Value : Assets.Images.Particles.DustFlameParticle.Asset.Value;
-        var frame = texture.Frame(frameCount, 6, (int)MathF.Floor(progress * frameCount), Variant % 3);
-        var glowFrame = texture.Frame(frameCount, 6, (int)MathF.Floor(progress * frameCount), Variant % 3 + 3);
+        var frame = texture.Frame(frameCount, 6, (int)MathF.Floor(progress * frameCount), variant % 3);
+        var glowFrame = texture.Frame(frameCount, 6, (int)MathF.Floor(progress * frameCount), variant % 3 + 3);
 
         SpriteEffects spriteEffects = 0;
-        if (Variant > 3)
+        if (variant > 3)
         {
             spriteEffects = SpriteEffects.FlipHorizontally;
         }
