@@ -1,55 +1,50 @@
-﻿using System.Reflection;
-using Daybreak.Common.Features.Hooks;
+﻿using Daybreak.Common.Features.Hooks;
 using MonoMod.Cil;
-using MonoMod.RuntimeDetour;
 using Terraria.Graphics.Shaders;
 
 namespace Refreshes.Content;
 
-internal sealed class RunDustSwap
+internal static class RunDustSwap
 {
-    private static ILHook spawnFastRunParticlesHook;
-
     [OnLoad]
-    private static void ApplyEdits()
+    private static void ApplyHooks()
     {
-        var mSpawnFastRunParticles = typeof(Player).GetMethod("SpawnFastRunParticles", BindingFlags.Instance | BindingFlags.NonPublic);
-        spawnFastRunParticlesHook = new ILHook(mSpawnFastRunParticles, ReplaceRunningDusts);
+        IL_Player.SpawnFastRunParticles += SpawnFastRunParticles_ReplaceRunningDusts;
     }
 
-    [OnUnload]
-    private static void Unhook()
+    private static void SpawnFastRunParticles_ReplaceRunningDusts(ILContext ctx)
     {
-        spawnFastRunParticlesHook.Dispose();
-    }
-
-    private static void ReplaceRunningDusts(ILContext ctx)
-    {
-        var c = new ILCursor(ctx);
-        while (c.TryGotoNext(MoveType.Before, i => i.MatchCall("Terraria.Dust", "NewDust")))
+        var c = new ILCursor(ctx)
         {
-            continue;
-        }
+            Next = null,
+        };
 
-        // remove original NewDust call due to a different approach
+        c.GotoPrev(MoveType.Before, x => x.MatchCall<Dust>(nameof(Dust.NewDust)));
+
         c.Remove();
-        // push player onto stack
-        c.EmitLdarg0();
-        // capture original call parameters to not mess with compat
+        c.EmitLdarg0(); // this (Player)
         c.EmitDelegate(
-            (Vector2 position, int width, int height, int type, float speedX, float speedY, int alpha, Color color, float scale, Player player) =>
+            (Vector2 position, int _, int _, int _, float _, float _, int _, Color _, float _, Player player) =>
             {
-                if (Main.rand.NextBool(3))
+                if (!Main.rand.NextBool(3))
                 {
-                    var tilePos = position.ToTileCoordinates();
-                    var dustWhoAmI = WorldGen.KillTile_MakeTileDust(tilePos.X, tilePos.Y, Main.tile[tilePos]);
-                    Main.dust[dustWhoAmI].position.X = player.Center.X;
-                    // move up so the dust isnt at the center of the tile below the player
-                    Main.dust[dustWhoAmI].position.Y -= 8;
-                    Main.dust[dustWhoAmI].velocity.Y = -2f;
-                    Main.dust[dustWhoAmI].velocity.X = player.direction * 2;
-                    Main.dust[dustWhoAmI].scale *= 0.8f;
-                    Main.dust[dustWhoAmI].shader = GameShaders.Armor.GetSecondaryShader(player.cShoe, player);
+                    return;
+                }
+
+                var tilePos = position.ToTileCoordinates();
+                var dust = Main.dust[WorldGen.KillTile_MakeTileDust(tilePos.X, tilePos.Y, Main.tile[tilePos])];
+                {
+                    // Move up so the dust isn't at the center of the tile below the
+                    // player.
+                    dust.position.X = player.Center.X;
+                    dust.position.Y -= 8;
+
+                    dust.velocity.Y = -2f;
+                    dust.velocity.X = player.direction * 2;
+
+                    dust.scale *= 0.8f;
+
+                    dust.shader = GameShaders.Armor.GetSecondaryShader(player.cShoe, player);
                 }
             }
         );
