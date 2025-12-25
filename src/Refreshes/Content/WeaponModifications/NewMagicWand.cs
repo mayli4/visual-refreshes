@@ -24,6 +24,10 @@ public sealed class NewMagicWand : GlobalProjectile
             dust.fadeIn = 1f;
             dust.noGravity = true;
         }
+
+        // Specifically to disable the godawful Magic Missile casting sound that
+        // plays 6 times a second!?
+        projectile.soundDelay = 10;
     }
 
     public override bool PreDraw(Projectile projectile, ref Color lightColor)
