@@ -31,11 +31,14 @@ internal static class RunDustSwap
                 {
                     return;
                 }
-
+                
                 var tilePos = position.ToTileCoordinates();
-                var dust = Main.dust[WorldGen.KillTile_MakeTileDust(tilePos.X, tilePos.Y, Main.tile[tilePos])];
+                var tile = Main.tile[tilePos];
+                
+                if (tile.IsTileInvisible) return;
+                
+                var dust = Main.dust[WorldGen.KillTile_MakeTileDust(tilePos.X, tilePos.Y, tile)];
                 {
-                    
                     // Move up so the dust isn't at the center of the tile below the
                     // player.
                     dust.position.X = player.Center.X;
@@ -46,8 +49,8 @@ internal static class RunDustSwap
 
                     dust.scale *= 0.8f;
                     
-                    if (Main.tile[tilePos].TileColor > PaintID.None)
-                        dust.shader = GameShaders.Armor.GetSecondaryShader(Main.tile[tilePos].TileColor, player);
+                    if (tile.TileColor > PaintID.None)
+                        dust.shader = GameShaders.Armor.GetSecondaryShader(tile.TileColor, player);
                 }
             }
         );
