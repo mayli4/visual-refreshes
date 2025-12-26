@@ -1,6 +1,7 @@
 ﻿using Daybreak.Common.Features.Hooks;
 using MonoMod.Cil;
 using Terraria.Graphics.Shaders;
+using Terraria.ID;
 
 namespace Refreshes.Content;
 
@@ -34,6 +35,7 @@ internal static class RunDustSwap
                 var tilePos = position.ToTileCoordinates();
                 var dust = Main.dust[WorldGen.KillTile_MakeTileDust(tilePos.X, tilePos.Y, Main.tile[tilePos])];
                 {
+                    
                     // Move up so the dust isn't at the center of the tile below the
                     // player.
                     dust.position.X = player.Center.X;
@@ -43,8 +45,9 @@ internal static class RunDustSwap
                     dust.velocity.X = player.direction * 2;
 
                     dust.scale *= 0.8f;
-
-                    dust.shader = GameShaders.Armor.GetSecondaryShader(player.cShoe, player);
+                    
+                    if (Main.tile[tilePos].TileColor > PaintID.None)
+                        dust.shader = GameShaders.Armor.GetSecondaryShader(Main.tile[tilePos].TileColor, player);
                 }
             }
         );
