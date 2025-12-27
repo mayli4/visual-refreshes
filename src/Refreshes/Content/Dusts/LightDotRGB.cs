@@ -25,7 +25,8 @@ internal class LightDotRGB : ModDust
 
         if (!dust.noLight && !dust.noLightEmittence)
         {
-            Lighting.AddLight(dust.position, dust.color.ToVector3() * dust.scale);
+            var dustIntensity = MathF.Min(1f, dust.scale) * 0.5f;
+            Lighting.AddLight(dust.position, dust.color.ToVector3() * dustIntensity);
         }
         if (dust.noGravity)
         {
