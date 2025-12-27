@@ -46,14 +46,14 @@ public static class StripRenderer
         Main.instance.GraphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3);
     }
 
-    public static void DrawStripPadded(Vector2[] positions, float[] rotations, StripColorFunction color, StripWidthFunction width, Vector2 offset = default)
+    public static void DrawStripPadded(Vector2[] positions, float[] rotations, StripColorFunction color, StripWidthFunction width, Vector2 offset = default, bool removeInvalidPositions = true)
     {
         var filteredPositions = new List<Vector2>();
         var filteredRotations = new List<float>();
 
         for (var i = 0; i < positions.Length; i++)
         {
-            if (positions[i] == Vector2.Zero)
+            if (removeInvalidPositions && positions[i] == Vector2.Zero)
             {
                 continue;
             }

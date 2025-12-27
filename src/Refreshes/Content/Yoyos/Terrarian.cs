@@ -90,7 +90,7 @@ internal sealed class TerrarianModifications : GlobalProjectile
             return Color.Lerp(trail_color, Color.Transparent, trailFadeoffProgress);
         }
 
-        PrimitiveRenderer.DrawStripPadded(previousPositions, previousRotations, StripColorFunction, TrailWidth, positionOffset - Main.screenPosition);
+        StripRenderer.DrawStripPadded(previousPositions, previousRotations, StripColorFunction, TrailWidth, positionOffset - Main.screenPosition, false);
 
         Main.pixelShader.CurrentTechnique.Passes[0].Apply();
 
