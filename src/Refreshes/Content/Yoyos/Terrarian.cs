@@ -12,6 +12,13 @@ namespace Refreshes.Content.Yoyos;
 
 internal sealed class TerrarianModifications : GlobalProjectile
 {
+    private static readonly Color trail_color = new Color(0.4f, 1f, 0.6f) * 0.5f;
+    private float TrailWidth(float p) => float.Lerp(6f, 12f, p);
+
+    private const float trail_split_width = 0.65f;
+    private const float trail_split_start = 50f;
+    private const float trail_split_length = 100f;
+
     private const float trail_fadeoff_length = 120f;
 
     private Vector2[]? previousPositions;
@@ -66,9 +73,12 @@ internal sealed class TerrarianModifications : GlobalProjectile
 
         var trailTexture = TextureAssets.MagicPixel.Value;
 
-        var trailShader = Assets.Shaders.BasicTrail.CreateBasicTrailPass();
+        var trailShader = Assets.Shaders.SplittingTrail.CreateBasicTrailPass();
         trailShader.Parameters.uTransformMatrix = Main.GameViewMatrix.NormalizedTransformationmatrix;
         trailShader.Parameters.uImage0 = new HlslSampler { Texture = trailTexture, Sampler = SamplerState.PointClamp };
+        trailShader.Parameters.uSplitProgressStart = trail_split_start / totalDistance;
+        trailShader.Parameters.uSplitProgressEnd = (trail_split_start + trail_split_length) / totalDistance;
+        trailShader.Parameters.uSplitWidth = trail_split_width;
         trailShader.Apply();
 
         var trailFadeoffLengthNormalized = (totalDistance - trail_fadeoff_length) / totalDistance;
@@ -77,11 +87,10 @@ internal sealed class TerrarianModifications : GlobalProjectile
         Color StripColorFunction(float p)
         {
             var trailFadeoffProgress = Utils.GetLerpValue(trailFadeoffLengthNormalized, 1f, p, true);
-            return Color.Lerp(Color.Chartreuse * 0.5f, Color.Transparent, trailFadeoffProgress);
+            return Color.Lerp(trail_color, Color.Transparent, trailFadeoffProgress);
         }
-        static float StripWidthFunction(float p) => 8f;
 
-        PrimitiveRenderer.DrawStripPadded(previousPositions, previousRotations, StripColorFunction, StripWidthFunction, positionOffset - Main.screenPosition);
+        PrimitiveRenderer.DrawStripPadded(previousPositions, previousRotations, StripColorFunction, TrailWidth, positionOffset - Main.screenPosition);
 
         Main.pixelShader.CurrentTechnique.Passes[0].Apply();
 
