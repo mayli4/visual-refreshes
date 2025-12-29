@@ -132,11 +132,6 @@ internal static class CloudInABottle
 
         using (sb.Scope())
         {
-            var shader = Assets.Shaders.Outline.Asset.Value;
-
-            shader.Parameters["uTexelSize"].SetValue(new Vector2(1f / cloudLease.Target.Width, 1f / cloudLease.Target.Height));
-            shader.Parameters["uOutlineColor"].SetValue(new Color(163, 180, 191).ToVector4());
-
             sb.Begin(ss with { SamplerState = SamplerState.PointClamp, TransformMatrix = Main.Transform, RasterizerState = Main.Rasterizer });
 
             Main.spriteBatch.Draw(
