@@ -76,7 +76,9 @@ internal static class CloudInABottle
         {
             var tex = Assets.Images.Particles.Circle.Asset.Value;
             var origin = tex.Size() / 2;
-            var color = Color.White * Alpha;
+            
+            var lightColor = Lighting.GetColor(Position.ToTileCoordinates());
+            var color = lightColor * Alpha;
 
             spriteBatch.Draw(
                 new DrawParameters(tex)
