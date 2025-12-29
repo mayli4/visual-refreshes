@@ -5,6 +5,7 @@ using Daybreak.Common.Rendering;
 using Refreshes.Common.Particles;
 using Terraria.Audio;
 using Terraria.Graphics.Renderers;
+using Terraria.ID;
 
 namespace Refreshes.Content;
 
@@ -43,29 +44,29 @@ internal static class CloudInABottle
     [PoolCapacity(300)]
     private sealed class CloudJumpParticle : BaseParticle<CloudJumpParticle>
     {
-        private float alpha;
-        private Vector2 position;
-        private float scale;
-        private float shrinkRate;
-        private Vector2 velocity;
+        public float Alpha;
+        public Vector2 Position;
+        public float Scale;
+        public float ShrinkRate;
+        public Vector2 Velocity;
 
         public override void FetchFromPool()
         {
             base.FetchFromPool();
 
-            alpha = 1f;
-            shrinkRate = Main.rand.NextFloat(0.91f, 0.95f);
+            Alpha = 1f;
+            ShrinkRate = Main.rand.NextFloat(0.91f, 0.95f);
         }
 
         public override void Update(ref ParticleRendererSettings settings)
         {
-            position += velocity;
-            velocity *= 0.94f;
+            Position += Velocity;
+            Velocity *= 0.94f;
 
-            scale *= shrinkRate;
-            alpha = MathHelper.Clamp(scale * 2f, 0f, 1f);
+            Scale *= ShrinkRate;
+            Alpha = MathHelper.Clamp(Scale * 2f, 0f, 1f);
 
-            if (alpha <= 0 || scale <= 0.1f)
+            if (Alpha <= 0 || Scale <= 0.1f)
             {
                 ShouldBeRemovedFromRenderer = true;
             }
@@ -75,15 +76,15 @@ internal static class CloudInABottle
         {
             var tex = Assets.Images.Particles.Circle.Asset.Value;
             var origin = tex.Size() / 2;
-            var color = new Color(213, 234, 231) * alpha;
+            var color = Color.White * Alpha;
 
             spriteBatch.Draw(
                 new DrawParameters(tex)
                 {
-                    Position = position + settings.AnchorPosition,
+                    Position = Position + settings.AnchorPosition,
                     Color = color,
                     Origin = origin,
-                    Scale = new Vector2(scale),
+                    Scale = new Vector2(Scale),
                 }
             );
         }
@@ -139,11 +140,10 @@ internal static class CloudInABottle
             sb.Begin(ss with { SamplerState = SamplerState.PointClamp, TransformMatrix = Main.Transform, RasterizerState = Main.Rasterizer });
 
             Main.spriteBatch.Draw(
-                new DrawParameters(cloudLease.Target)
-                {
+                new (cloudLease.Target) {
                     Position = Vector2.Zero,
                     Scale = new Vector2(1f / 0.5f),
-                    Color = Color.White * 0.8f,
+                    Color = Color.White * 0.6f,
                 }
             );
         }
@@ -155,7 +155,7 @@ internal static class CloudInABottle
 
         SoundEngine.PlaySound(Assets.Sounds.Items.CloudJump.Asset with { PitchVariance = 0.3f, Pitch = 0f });
 
-        /*
+        
         for (int i = 0; i < 3; i++) {
             var p = CloudJumpParticle.Pool.RequestParticle();
 
@@ -165,11 +165,9 @@ internal static class CloudInABottle
             p.Velocity.X -= player.velocity.X * 0.4f;
 
             p.Scale = Main.rand.NextFloat(2f, 2.5f);
-            p.Rotation = Main.rand.NextFloat(MathHelper.TwoPi);
-            p.RotationSpeed = Main.rand.NextFloat(-0.1f, 0.1f);
 
 
-            CloudParticleRenderer.Particles.Add(p);
+            particles.Add(p);
         }
 
         for (int i = 0; i < 5; i++) {
@@ -181,42 +179,27 @@ internal static class CloudInABottle
             p.Velocity.X += player.velocity.X * 0.4f;
 
             p.Scale = Main.rand.NextFloat(2f, 0.5f);
-            p.Rotation = Main.rand.NextFloat(MathHelper.TwoPi);
-            p.RotationSpeed = Main.rand.NextFloat(-0.1f, 0.1f);
 
 
-            CloudParticleRenderer.Particles.Add(p);
+            particles.Add(p);
         }
-        */
+        
 
         for (var i = 0; i < 3; i++)
         {
-            // var p = DustFlameParticle.Pool.RequestParticle();
-
             var particleVel = -player.velocity * 0.7f + Main.rand.NextVector2Circular(5, 5);
-            var particle = DustFlameParticle.RequestNew(player.Bottom, particleVel, Color.White, Color.White, 1, Main.rand.Next(24, 35));
-            particle.LossPerFrame = 0.8f;
+            var particle = DustFlameParticle.RequestNew(player.Bottom, particleVel, new Color(84, 134, 237), Color.White, 2, Main.rand.Next(24, 35));
+            particle.LossPerFrame = 0.4f;
             particle.Swirly = true;
             particles.Add(particle);
         }
 
-        for (var i = 0; i < 3; i++)
-        {
-            // var p = DustFlameParticle.Pool.RequestParticle();
-
-            var particleVel = player.velocity * 0.7f + Main.rand.NextVector2Circular(5, 5);
-            var particle = DustFlameParticle.RequestNew(player.Bottom, particleVel, Color.White, Color.White, Main.rand.NextFloat(2.5f, 1.5f), Main.rand.Next(24, 35));
-            particle.LossPerFrame = 0.7f;
-            particle.Swirly = false;
-            particles.Add(particle);
-        }
-
-        /*
+        
         for (var i = 0; i < 5; i++)
         {
             Dust.NewDust(player.Bottom, 1, 1, DustID.Cloud, -player.velocity.X * 0.4f, -player.velocity.Y * 0.2f);
         }
-        */
+        
     }
 
     [ModPlayerHooks.CanShowExtraJumpVisuals]
