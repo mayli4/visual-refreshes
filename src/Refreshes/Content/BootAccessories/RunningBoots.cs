@@ -1,6 +1,6 @@
 ﻿using Daybreak.Common.Features.Hooks;
 
-namespace Refreshes.Content.BootAccessories;
+namespace Refreshes.Content;
 
 [Autoload(Side = ModSide.Client)]
 internal sealed class RunningBoots
