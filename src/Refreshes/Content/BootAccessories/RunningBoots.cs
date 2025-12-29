@@ -2,6 +2,7 @@
 
 namespace Refreshes.Content.BootAccessories;
 
+[Autoload(Side = ModSide.Client)]
 internal sealed class RunningBoots
 {
     [OnLoad]
