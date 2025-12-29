@@ -1,5 +1,4 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Features.Models;
 using Daybreak.Common.Mathematics;
@@ -44,11 +43,13 @@ internal static class CloudInABottle
     }
 
     private static readonly ParticleRenderer particles = new();
+    private static readonly ParticleRenderer large_particles = new();
 
     [ModSystemHooks.PostUpdateEverything]
     private static void UpdateParticles()
     {
         particles.Update();
+        large_particles.Update();
     }
 
     [OnLoad]
@@ -91,9 +92,17 @@ internal static class CloudInABottle
                 new (cloudLease.Target) {
                     Position = Vector2.Zero,
                     Scale = new Vector2(1f / 0.5f),
-                    Color = Color.White * 0.6f,
+                    Color = Color.White * 0.4f,
                 }
             );
+            
+            
+            Main.spriteBatch.End(out var ss2);
+            
+            Main.spriteBatch.Begin(ss2 with { SamplerState = SamplerState.PointClamp });
+
+            large_particles.Settings.AnchorPosition = -Main.screenPosition;
+            large_particles.Draw(Main.spriteBatch);
         }
     }
 
@@ -103,63 +112,53 @@ internal static class CloudInABottle
 
         SoundEngine.PlaySound(Assets.Sounds.Items.CloudJump.Asset with { PitchVariance = 0.3f, Pitch = 0f });
         
-        var largeParticle = LargeCloudJumpParticle.Pool.RequestParticle();
+        var startDir = new Vector2(-player.velocity.X * 0.4f, 3f);
+        var startAngle = startDir.ToRotation();
+    
+        const float start_speed = 3f; 
 
-        largeParticle.Position = player.Bottom;
-        largeParticle.Velocity = -player.velocity * 0.2f;
-        largeParticle.Velocity.Y -= player.velocity.Y * 0.2f;
-        largeParticle.Velocity.X -= player.velocity.X * 0.2f;
+        for (var i = 0; i < 3; i++) 
+        {
+            var largeParticle = LargeCloudJumpParticle.Pool.RequestParticle();
+            largeParticle.Position = player.Bottom;
 
-        largeParticle.Rotation = Angle.FromRadians(player.velocity.X * 0.05f);
+            var spread = MathHelper.Lerp(-1.25f, 1.25f, i / 2f);
         
-        largeParticle.Scale = Main.rand.NextFloat(2f, 2.5f);
+            largeParticle.Velocity = new Vector2(0, start_speed).RotatedBy(startAngle + spread - MathHelper.PiOver2);
 
+            largeParticle.Rotation = Angle.FromRadians(largeParticle.Velocity.X * 0.15f);
+            largeParticle.Scale = 1.3f;
 
-        ParticleEngine.PARTICLES.Add(largeParticle);
+            large_particles.Add(largeParticle);
+        }
         
         for (int i = 0; i < 3; i++) 
         {
             var p = CloudJumpParticle.Pool.RequestParticle();
-
+        
             p.Position = player.Bottom;
             p.Velocity = Main.rand.NextVector2Circular(4f, 2f);
             p.Velocity.Y -= player.velocity.Y * 0.8f;
             p.Velocity.X -= player.velocity.X * 0.4f;
-
+        
             p.Scale = Main.rand.NextFloat(2f, 2.5f);
-
-
+        
+        
             particles.Add(p);
         }
-
-        for (int i = 0; i < 5; i++) 
-        {
-            var p = CloudJumpParticle.Pool.RequestParticle();
-
-            p.Position = player.Bottom;
-            p.Velocity = Main.rand.NextVector2Circular(4f, 2f);
-            p.Velocity.Y += player.velocity.Y * 0.8f;
-            p.Velocity.X += player.velocity.X * 0.4f;
-
-            p.Scale = Main.rand.NextFloat(2f, 0.5f);
-
-
-            particles.Add(p);
-        }
-
+        
         for (var i = 0; i < 3; i++)
         {
             var dirVel = Main.rand.NextBool() ? -player.velocity : player.velocity;
             
-            var particleVel = -player.velocity * 0.7f + Main.rand.NextVector2Circular(5, 5);
+            var particleVel = player.velocity * 0.7f + Main.rand.NextVector2Circular(5, 5);
             var particle = DustFlameParticle.RequestNew(player.Bottom, particleVel, new Color(84, 134, 237) * 0.5f, Color.White, 2, Main.rand.Next(24, 35));
             particle.LossPerFrame = 0.4f;
             particle.Swirly = true;
             particles.Add(particle);
         }
-
         
-        for (var i = 0; i < 5; i++)
+        for (var i = 0; i < 15; i++)
         {
             Dust.NewDust(player.Bottom, 1, 1, DustID.Cloud, -player.velocity.X * 0.4f, -player.velocity.Y * 0.2f);
         }
@@ -175,10 +174,10 @@ internal static class CloudInABottle
     [PoolCapacity(300)]
     private sealed class CloudJumpParticle : BaseParticle<CloudJumpParticle>
     {
-        public float Alpha;
+        private float alpha;
         public Vector2 Position;
         public float Scale;
-        public float ShrinkRate;
+        private float shrinkRate;
         public Vector2 Velocity;
         private bool flip;
 
@@ -196,10 +195,10 @@ internal static class CloudInABottle
             Position += Velocity;
             Velocity *= 0.94f;
 
-            Scale *= ShrinkRate;
-            Alpha = MathHelper.Clamp(Scale * 2f, 0f, 1f);
+            Scale *= shrinkRate;
+            alpha = MathHelper.Clamp(Scale * 2f, 0f, 1f);
 
-            if (Alpha <= 0 || Scale <= 0.1f)
+            if (alpha <= 0 || Scale <= 0.1f)
             {
                 ShouldBeRemovedFromRenderer = true;
             }
@@ -227,52 +226,63 @@ internal static class CloudInABottle
             );
         }
     }
+    
 
     [PoolCapacity(300)]
     private sealed class LargeCloudJumpParticle : BaseParticle<LargeCloudJumpParticle>
     {
         public Vector2 Position;
         public float Scale;
-        public float ShrinkRate;
         public Vector2 Velocity;
         public Angle Rotation;
-        public float RotationSpeed;
+
+        private int variation;
+
+        private int lifeTime;
+        private const int max_life = 28;
+        private const int frame_count = 7;
 
         public override void FetchFromPool()
         {
             base.FetchFromPool();
 
+            variation = Main.rand.Next(1, 3);
             Rotation = Angle.Zero;
-            RotationSpeed = 0;
-            ShrinkRate = Main.rand.NextFloat(0.91f, 0.95f);
+            lifeTime = 0;
+            Scale = 1f;
         }
 
-        public override void Update(ref ParticleRendererSettings settings)
-        {
+        public override void Update(ref ParticleRendererSettings settings) {
             Position += Velocity;
             Velocity *= 0.94f;
 
-            Scale *= ShrinkRate;
-
-            if (Scale <= 0.1f)
-            {
+            if (++lifeTime >= max_life) {
                 ShouldBeRemovedFromRenderer = true;
             }
         }
 
-        public override void Draw(ref ParticleRendererSettings settings, SpriteBatch spriteBatch)
-        {
-            var tex = Assets.Images.Content.BottleAccessories.LargeCloudParticle_1.Asset.Value;
-            var origin = tex.Size() / 2;
+        public override void Draw(ref ParticleRendererSettings settings, SpriteBatch spriteBatch) {
+            var tex = variation switch
+            {
+                1 => Assets.Images.Content.BottleAccessories.LargeCloudParticle_1.Asset.Value,
+                2 => Assets.Images.Content.BottleAccessories.LargeCloudParticle_2.Asset.Value,
+                _ => Assets.Images.Content.BottleAccessories.LargeCloudParticle_1.Asset.Value,
+            };
+
+            var progress = (float)lifeTime / max_life;
+            var frameIndex = (int)(progress * frame_count);
+            
+            var frame = tex.Frame(1, frame_count, 0, frameIndex);
+            
+            var origin = frame.Size() / 2;
             
             var lightColor = Lighting.GetColor(Position.ToTileCoordinates());
-            var color = lightColor;
 
             spriteBatch.Draw(
-                new DrawParameters(tex)
-                {
+                new (tex) {
                     Position = Position + settings.AnchorPosition,
-                    Color = color,
+                    Source = frame,
+                    Color = lightColor,
                     Origin = origin,
                     Scale = new Vector2(Scale),
                     Rotation = Rotation,
