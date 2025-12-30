@@ -8,15 +8,17 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Terraria.GameContent;
+using Terraria.GameContent.Drawing;
+using Vector2 = Microsoft.Xna.Framework.Vector2;
 
 namespace Refreshes.Common.Decals;
 
 [Autoload(Side = ModSide.Client)]
 public static class DecalLoader
 {
-    public static IReadOnlyDictionary<ushort, IDecalRenderer> DecalRenderersByType => _decalRenderers;
+    public static IReadOnlyDictionary<ushort, DecalRenderer> DecalRenderersByType => _decalRenderers;
 
-    private static readonly Dictionary<ushort, IDecalRenderer> _decalRenderers = [];
+    private static readonly Dictionary<ushort, DecalRenderer> _decalRenderers = [];
     private const int MAX_DECALS = 8192;
     private static ulong[] _decalActivity = new ulong[MAX_DECALS/64];
     public static readonly DecalData[] Decals = new DecalData[MAX_DECALS];
@@ -26,24 +28,23 @@ public static class DecalLoader
     {
         foreach(var mod in ModLoader.Mods)
         {
-            var asm = mod.Code;
-            var types = asm.GetTypes().Where(t => t.IsAssignableFrom(typeof(IDecalRenderer)) && t != typeof(IDecalRenderer));
-            foreach (var type in types)
+            var renderers = mod.GetContent<DecalRenderer>();
+            foreach (var renderer in renderers)
             {
-                var ctor = type.GetDefaultConstructor();
-                IDecalRenderer renderer = (IDecalRenderer)ctor.Invoke(null);
+
                 _decalRenderers[renderer.Type] = renderer;
             }
         }
         On_Main.DrawNPCs += On_Main_DrawNPCs_DrawDecals;
 #if DEBUG
-        Decals[0] = new DecalData(false, 0, new Point(0, 0), 0, new Microsoft.Xna.Framework.Vector2(2), default(FramingData));
-        _decalActivity[0] = 1ul << 63;
+        Decals[0] = new DecalData(false, 0, new Point(50, 10), 0, new Microsoft.Xna.Framework.Vector2(2), default(FramingData));
+        _decalActivity[0] = 1;
 #endif
     }
 
     private static void On_Main_DrawNPCs_DrawDecals(On_Main.orig_DrawNPCs orig, Main self, bool behindTiles)
     {
+        
         for (int i = 0; i < _decalActivity.Length; i++) {
             var copy = _decalActivity[i];
             
@@ -62,13 +63,17 @@ public static class DecalLoader
     }
 }
 
-internal sealed class TestRenderer : IDecalRenderer
+internal sealed class TestRenderer : DecalRenderer
 {
-    ushort IDecalRenderer.Type =>  0;
-
-    void IDecalRenderer.Draw(DecalData data, SpriteBatch spriteBatch)
+    public override ushort Type => 0;
+    public override void Draw(DecalData data, SpriteBatch spriteBatch)
     {
-        var tex = TextureAssets.Item[50].Value;
-        spriteBatch.Draw(tex, data.Position.ToWorldCoordinates()-Main.screenPosition, Color.White);
+        Main.NewText(data.Position.ToWorldCoordinates());
+        Main.NewText(Main.offScreenRange);
+        if (TileDrawing.IsVisible(Main.tile[data.Position]))
+        {
+            Vector2 zero = new Vector2(Main.drawToScreen ? 0 : Main.offScreenRange);
+            spriteBatch.Draw(TextureAssets.Item[50].Value, data.Position.ToWorldCoordinates() - Main.sceneTilePos + zero, null, Color.White, 0, Vector2.zeroVector, 5f, SpriteEffects.None, 0);
+        }
     }
 }
