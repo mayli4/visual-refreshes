@@ -51,11 +51,12 @@ float fbm3(float3 v) {
 
 float4 MainPS(float4 color : COLOR0, float2 uv : TEXCOORD0) : COLOR0{
     float4 sample = tex2D(uImage0, uv);
+	uv *= 4.0;
     
 	float4 finalColor = 0;
 	// some bullshit
 	float2 offset = float2(fbm3(uv.yxx), 0.0);
-	float4 noise = tex2D(texture0, offset + float2(uTime, uTime));
+	float4 noise = tex2D(texture0, offset + float2(uTime, 0.0));
 	// fbm-esque stuff
     for (int i = 0; i < 4; i++)
     {

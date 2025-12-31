@@ -61,16 +61,11 @@ internal sealed class NewTerrarian : GlobalProjectile
 
         public override void Draw(ref ParticleRendererSettings settings, SpriteBatch spriteBatch)
         {
-            const float start_size = 0.5f;
-            const float final_size = 0f;
-            const float start_alpha = 0f;
-            const float final_alpha = 0f;
-
             var texture = Assets.Images.Particles.Circle.Asset.Value;
             var origin = texture.Size() / 2;
 
-            var scaleMult = Bezier.Cubic(start_size, 0.5f, 0f, final_size, LifeTimeProgress);
-            var alphaMult = Bezier.Cubic(start_alpha, 1f, 0.5f, final_alpha, LifeTimeProgress);
+            var scaleMult = Utils.GetLerpValue(-0.5f, 0.5f, LifeTimeProgress, true) * Utils.GetLerpValue(1f, 0.2f, LifeTimeProgress, true);
+            var alphaMult = Utils.GetLerpValue(-0.5f, 0.5f, LifeTimeProgress, true) * Utils.GetLerpValue(1f, 0f, LifeTimeProgress, true);
 
             spriteBatch.Draw(
                 new DrawParameters(texture)
@@ -157,7 +152,7 @@ internal sealed class NewTerrarian : GlobalProjectile
             gasShader.Parameters["uTexture0"].SetValue(Assets.Images.Sample.LavaNoise_1.Asset.Value);
             gasShader.Parameters["uTime"].SetValue(Main.GlobalTimeWrappedHourly * 0.2f);
             gasShader.Parameters["uMultColor"].SetValue(new Vector4(0f, 0.5f, 0f, 1f));
-            gasShader.Parameters["uAddColor"].SetValue(new Vector4(0f, 0f, 0.3f, 0f));
+            gasShader.Parameters["uAddColor"].SetValue(new Vector4(0f, 0.2f, 0.3f, 0f));
             gasShader.Parameters["uColorAmount"].SetValue(4f);
 
             Main.spriteBatch.Begin(ss with { SamplerState = SamplerState.PointClamp, CustomEffect = gasShader });
@@ -178,7 +173,7 @@ internal sealed class NewTerrarian : GlobalProjectile
         {
             var outlineShader = Assets.Shaders.Outline.Asset.Value;
             outlineShader.Parameters["uTexelSize"].SetValue(new Vector2(1f / terrarian_gas_shader_lease.Target.Width, 1f / terrarian_gas_shader_lease.Target.Height));
-            outlineShader.Parameters["uOutlineColor"].SetValue(new Color(0.4f, 1f, 0.6f).ToVector4());
+            outlineShader.Parameters["uOutlineColor"].SetValue(new Color(0.7f, 1f, 0.3f).ToVector4());
 
             Main.spriteBatch.Begin(ss with { SamplerState = SamplerState.PointClamp, TransformMatrix = Main.Transform, RasterizerState = Main.Rasterizer, CustomEffect = outlineShader });
 
@@ -195,40 +190,10 @@ internal sealed class NewTerrarian : GlobalProjectile
         orig(self);
     }
 
-    private static readonly Color trail_color_start = new Color(0.4f, 1f, 0.6f) * 0.5f;
-    private static readonly Color trail_color_end = new Color(0.4f, 0.6f, 1f) * 0.5f;
-
-    private float TrailWidth(float p) => float.Lerp(6f, 12f, p);
-
-    private const float trail_offset_amplitude = 10f;
-    private const float trail_offset_phase = 1f;
-
-    private const float trail_split_width_start = 0.65f;
-    private const float trail_split_width_end = 0.8f;
-    private const float trail_split_start = 50f;
-    private const float trail_split_length = 100f;
-    private const float trail_split_width_progress_start = 150f;
-    private const float trail_split_width_progress_length = 200;
-
-    private const float trail_fadeoff_length = 120f;
-
     private static readonly Color flare_color = new Color(0.4f, 1f, 0.6f);
     private static readonly Color flare_color_shine = new Color(1f, 1f, 1f, 0f);
 
     private const float flare_phase = 0.075f;
-
-    [AllowNull]
-    private Vector2[] previousPositions;
-    [AllowNull]
-    private Vector2[] previousDirections;
-    [AllowNull]
-    private float[] previousOffsetPhases;
-    [AllowNull]
-    private Vector2[] previousOffsetPositions;
-    [AllowNull]
-    private float[] previousRotations;
-    private float trailCurrentPhase;
-    private float totalDistance;
 
     private float flareCounter;
 
@@ -239,74 +204,9 @@ internal sealed class NewTerrarian : GlobalProjectile
         return entity.type == ProjectileID.Terrarian;
     }
 
-    private void InitializeArrays(Projectile projectile)
-    {
-        if (previousPositions == null || previousDirections == null || previousOffsetPhases == null || previousOffsetPositions == null || previousRotations == null)
-        {
-            previousPositions = new Vector2[20];
-            previousDirections = new Vector2[20];
-            previousOffsetPhases = new float[20];
-            previousOffsetPositions = new Vector2[20];
-            previousRotations = new float[20];
-
-            for (var i = 0; i < previousPositions.Length; i++)
-            {
-                previousPositions[i] = projectile.position + projectile.velocity;
-                previousDirections[i] = projectile.velocity.SafeNormalize(Vector2.Zero);
-                previousOffsetPhases[i] = 0;
-                previousOffsetPositions[i] = previousPositions[i];
-                previousRotations[i] = previousDirections[i].ToRotation();
-            }
-        }
-    }
-
     public override void PostAI(Projectile projectile)
     {
-        InitializeArrays(projectile);
-
-        #region Trail position-related code
-        for (var i = previousPositions.Length - 1; i > 0; i--)
-        {
-            previousPositions[i] = previousPositions[i - 1];
-            previousDirections[i] = previousDirections[i - 1];
-            previousOffsetPhases[i] = previousOffsetPhases[i - 1];
-            previousRotations[i] = previousRotations[i - 1];
-        }
-
-        trailCurrentPhase += trail_offset_phase;
-        previousPositions[0] = projectile.position + projectile.velocity;
-        previousDirections[0] = projectile.velocity.SafeNormalize(Vector2.Zero);
-        previousOffsetPhases[0] = trailCurrentPhase;
-        previousRotations[0] = previousDirections[0].ToRotation();
-
-        for (var i = 0; i < previousOffsetPositions.Length; i++)
-        {
-            var progress = (float)i / previousOffsetPositions.Length;
-            var offset = previousDirections[i].RotatedBy(MathF.PI / 2) * MathF.Sin(previousOffsetPhases[i]) * trail_offset_amplitude * progress;
-            previousOffsetPositions[i] = previousPositions[i] + offset;
-        }
-
-        totalDistance = 0;
-        for (var i = 0; i < previousPositions.Length - 2; i++)
-        {
-            totalDistance += (previousPositions[i + 1] - previousPositions[i]).Length();
-        }
-        #endregion
-
         #region Dust spawning
-        if (Main.rand.NextBool(3))
-        {
-            var dust = Dust.NewDustPerfect
-            (
-                Main.rand.NextFromList(previousPositions) + projectile.Size * 0.5f + Main.rand.NextVector2Circular(4f, 4f),
-                ModContent.DustType<LightDotRGB>(),
-                Main.rand.NextVector2Circular(4f, 4f),
-                Scale: 1.5f,
-                newColor: Color.Lerp(Color.White, Color.SpringGreen, Main.rand.NextFloat())
-            );
-            dust.fadeIn = Main.rand.NextFloat(0.1f, 0.3f);
-            dust.noGravity = true;
-        }
         if (Main.rand.NextBool(5))
         {
             var headDust = Dust.NewDustPerfect
@@ -314,8 +214,8 @@ internal sealed class NewTerrarian : GlobalProjectile
                 projectile.Center + Main.rand.NextVector2Circular(4f, 4f),
                 ModContent.DustType<LightDotRGB>(),
                 projectile.velocity * 0.5f + Main.rand.NextVector2Circular(2f, 2f),
-                Scale: 1f,
-                newColor: Color.Lerp(Color.White, Color.SpringGreen, Main.rand.NextFloat())
+                Scale: 1.5f,
+                newColor: Color.White
             );
             headDust.fadeIn = Main.rand.NextFloat(0.05f, 0.15f);
             headDust.noGravity = true;
@@ -325,7 +225,8 @@ internal sealed class NewTerrarian : GlobalProjectile
         flareCounter += flare_phase;
         flareCounter %= 1f;
 
-        for (int i = 0; i < 2; i++)
+        #region Particle spawning
+        for (var i = 0; i < 3; i++)
         {
             var particle = TerrarianGasParticle.Pool.RequestParticle();
 
@@ -335,49 +236,21 @@ internal sealed class NewTerrarian : GlobalProjectile
             particle.Rotation = Main.rand.NextFloat(MathF.PI * 2f);
             particle.RotationSpeed = Main.rand.NextFloat(-0.05f, 0.05f);
 
-            particle.Scale = new Vector2(Main.rand.NextFloat(2f, 3f));
+            particle.Scale = new Vector2(Main.rand.NextFloat(0.5f, 1.5f)) * Utils.GetLerpValue(0f, 12f, projectile.velocity.Length(), true);
 
             particle.MaxLifeTime = Main.rand.Next(5, 15);
 
             terrarian_gas_particle_renderer.Add(particle);
         }
+        #endregion
     }
 
     public override bool PreDraw(Projectile projectile, ref Color lightColor)
     {
-        InitializeArrays(projectile);
-
         var yoyoTexture = TextureAssets.Projectile[ProjectileID.Terrarian].Value;
 
         var textureCenter = yoyoTexture.Size() * 0.5f;
 
-        /*
-        var trailTexture = TextureAssets.MagicPixel.Value;
-
-        var trailShader = Assets.Shaders.SplittingTrail.CreateBasicTrailPass();
-        trailShader.Parameters.uTransformMatrix = Main.GameViewMatrix.NormalizedTransformationmatrix;
-        trailShader.Parameters.uImage0 = new HlslSampler { Texture = trailTexture, Sampler = SamplerState.PointClamp };
-        trailShader.Parameters.uSplitProgressStart = trail_split_start / totalDistance;
-        trailShader.Parameters.uSplitProgressEnd = (trail_split_start + trail_split_length) / totalDistance;
-        trailShader.Parameters.uSplitWidthProgressStart = trail_split_width_progress_start / totalDistance;
-        trailShader.Parameters.uSplitWidthProgressStart = (trail_split_width_progress_start + trail_split_width_progress_length) / totalDistance;
-        trailShader.Parameters.uSplitWidthStart = trail_split_width_start;
-        trailShader.Parameters.uSplitWidthEnd = trail_split_width_end;
-        trailShader.Apply();
-
-        var trailFadeoffLengthNormalized = (totalDistance - trail_fadeoff_length) / totalDistance;
-        trailFadeoffLengthNormalized = MathF.Max(trailFadeoffLengthNormalized, 0f);
-
-        Color StripColorFunction(float p)
-        {
-            var trailFadeoffProgress = Utils.GetLerpValue(trailFadeoffLengthNormalized, 1f, p, true);
-            return Color.Lerp(Color.Lerp(trail_color_start, trail_color_end, trailFadeoffProgress), Color.Transparent, trailFadeoffProgress);
-        }
-
-        StripRenderer.DrawStripPadded(previousOffsetPositions, previousRotations, StripColorFunction, TrailWidth, projectile.Size * 0.5f - Main.screenPosition, false);
-
-        Main.pixelShader.CurrentTechnique.Passes[0].Apply();
-        */
         var spriteDirection = projectile.spriteDirection == -1 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 
         Main.spriteBatch.Draw(yoyoTexture, projectile.Center - Main.screenPosition, null, projectile.GetAlpha(lightColor), projectile.rotation, textureCenter, projectile.scale, spriteDirection, 0f);
