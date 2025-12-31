@@ -70,14 +70,15 @@ public static class DecalLoader
 internal sealed class TestRenderer : DecalRenderer
 {
     public override ushort Type => 0;
-    public override void Draw(DecalData data, SpriteBatch spriteBatch)
-    {
-        Main.NewText(data.Position.ToWorldCoordinates());
-        Main.NewText(Main.offScreenRange);
-        if (TileDrawing.IsVisible(Main.tile[data.Position]))
-        {
-            Vector2 zero = new Vector2(Main.drawToScreen ? 0 : Main.offScreenRange);
-            spriteBatch.Draw(TextureAssets.Item[50].Value, data.Position.ToWorldCoordinates() - Main.sceneTilePos + zero, null, Color.White, 0, Vector2.zeroVector, 5f, SpriteEffects.None, 0);
-        }
+    
+    public override void Draw(DecalData data, SpriteBatch spriteBatch) {
+        var worldPos = data.Position.ToWorldCoordinates(new Vector2(8f, 8f));
+        
+        var screenPos = worldPos - Main.screenPosition;
+
+        var tex = TextureAssets.Item[50].Value;
+        var origin = tex.Size() / 2f;
+
+        spriteBatch.Draw(tex, screenPos, null, Color.White, data.Rotation, origin, data.Scale, SpriteEffects.None, 0f);
     }
 }
