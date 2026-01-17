@@ -7,7 +7,7 @@ float2 screenres;
 float2 scenewallpos;
 float2 zoom;
 
-float4 MainPS(float4 drawColor : COLOR0, float2 uv : TEXCOORD0, float4 pos : SV_POSITION) : COLOR0{
+float4 main(float4 drawColor : COLOR0, float2 uv : TEXCOORD0, float4 pos : SV_POSITION) : COLOR0{
     float4 tree = tex2D(uImage0, uv) * drawColor;
     
     float2 screenCenter = screenres * 0.5;
@@ -25,6 +25,6 @@ float4 MainPS(float4 drawColor : COLOR0, float2 uv : TEXCOORD0, float4 pos : SV_
 
 technique Technique1 {
     pass Mask { 
-        PixelShader = compile ps_3_0 MainPS(); 
+        PixelShader = compile ps_3_0 main(); 
     }
 }
